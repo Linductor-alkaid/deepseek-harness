@@ -19,6 +19,13 @@ const RUNTIME_ROOT = BUILD_PATHS.runtime
 
 type DesktopTarget = ReturnType<typeof desktopTargetPlatform>
 
+/** Locate the Electron executable inside an extracted distribution for one platform. */
+function electronExecutable(platform: 'darwin' | 'win32' | 'linux'): string {
+  if (platform === 'win32') return join(BUILD_PATHS.electron, 'electron.exe')
+  if (platform === 'linux') return join(BUILD_PATHS.electron, 'electron')
+  return join(BUILD_PATHS.electron, 'Electron.app/Contents/MacOS/Electron')
+}
+
 /** Extract the target Electron distribution and return its embedded Node version. */
 async function prepareElectron({ platform, arch }: DesktopTarget): Promise<string> {
   const require = createRequire(import.meta.url)
@@ -27,7 +34,7 @@ async function prepareElectron({ platform, arch }: DesktopTarget): Promise<strin
     () => downloadArtifact({ version, platform, arch, artifactName: 'electron', cacheRoot: BUILD_PATHS.downloads }))
   rmSync(BUILD_PATHS.electron, { recursive: true, force: true })
   await packagingStep(process.env.DSH_DESKTOP_PACKAGING_RUN_DIR, 'extract:electron', () => extractZip(archive, { dir: BUILD_PATHS.electron }))
-  const executable = join(BUILD_PATHS.electron, platform === 'win32' ? 'electron.exe' : 'Electron.app/Contents/MacOS/Electron')
+  const executable = electronExecutable(platform)
   return execFileSync(executable, ['-p', 'process.versions.node'], {
     encoding: 'utf8', env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
   }).trim()

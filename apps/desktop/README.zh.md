@@ -152,11 +152,13 @@ Electron 拥有 `$DSH_HOME/profiles/desktop`。其 `dependencies` 包含 pnpm �
 
 Electron 根据应用语言选择类型化的英文或中文 shell 文案，并回退到英文。macOS 应用包通过 `CFBundleLocalizations` 声明支持英语和简体中文，让 macOS 根据用户的首选语言匹配初始应用语言。主界面仍优先使用已保存的 Client UI 语言偏好。在 Windows 上，主文档的语言会更新桌面菜单、恢复与更新提示。仓库 Client UI i18n 检查覆盖桌面端源码。
 
-Windows 和 macOS 会在原生全屏切换及每次页面加载后向渲染器同步全屏状态，让浮层调整顶栏避让距离。
+Windows、macOS 和 Linux 会在原生全屏切换及每次页面加载后向渲染器同步全屏状态，让浮层调整顶栏避让距离。
 
 Windows 使用 40 DIP 顶栏，保留原生窗口按钮，颜色随应用调色板同步。侧栏开关旁的本地化“应用”和“编辑”入口打开原生弹出菜单。仅当应用框架发布 shell overlay 席位后才挂载菜单，启动加载期间不显示。“应用”提供检查更新和退出；“编辑”向当前编辑器发送对应按键，提供撤销、重做、剪切、复制、粘贴、删除和全选，不受自定义快捷键绑定影响。插件管理使用主应用的“插件”页面。按 Alt 不会出现额外的原生菜单行。其他平台保留原生菜单。可编辑区域保留快捷键和不带快捷键标注的右键菜单；命令可用状态由 Chromium 提供，选中的只读文本提供“复制”命令。
 
 macOS 上自定义菜单保留 Electron 的标准 Window 菜单及应用隐藏命令，包括 Minimize（⌘M）和 Hide（⌘H）。Linux 保留应用菜单和 Edit 菜单。
+
+Linux 不绘制原生标题栏，因此主窗口去掉边框，由渲染器绘制 40 DIP 的标题条，并自行提供最小化、最大化／还原和关闭控件。标题条用于拖动窗口；控件通过私有通道向外壳请求动作，外壳回告最大化状态，中间那颗按钮据此切换图形。在 Linux 上关闭窗口会退出应用，因为该平台既没有 Dock 也没有托盘，隐藏后无法再唤回；macOS 与 Windows 则只隐藏窗口。
 
 ### 运行时与插件激活
 
@@ -359,6 +361,7 @@ node apps/desktop/node_modules/pnpm/bin/pnpm.mjs --dir apps/desktop run test:upd
 - 账号登录尚未接入；登录按钮禁用。Windows 材质效果仍需平台验证。
 
 - 发布签名、公证、更新托管和跨上一版本的已安装产物验证需要生产发布环境。
+- Linux 的 Desktop 产物是本地未签名构建——Debian 包与 AppImage：没有发布签名、没有更新源、没有强制更新策略，应用也不会把 `dsh` 命令安装到 `PATH`。Debian 包在依赖里把 64 位 time_t 迁移后的包名排在前面、原包名作为备选，并依赖受限 shell 运行器 `bubblewrap`，因此可以在 Ubuntu 24.04、22.04 与 20.04 上安装。
 - 依赖的生命周期脚本遵循 pnpm 的构建权限；Desktop 不提供单独的审批对话框。
 - 桌面壳与 CLI dsh 共享 `$DSH_HOME` 下的会话、设置、凭据、工作区和存储，但可执行包、插件激活和锁文件彼此隔离。
 - 在 Electron win32-arm64 宿主上，未打包启动现在可以成功，但载荷仍为 x64：`packages/skill/tool-workspace-dependencies/src/index.ts` 的架构校验会把载荷记录的架构与宿主 `process.arch` 比较，因此 `load_workspace_dependencies` 工具仍可能拒绝 primary runtime。

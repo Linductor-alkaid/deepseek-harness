@@ -7,6 +7,7 @@ import { PLATFORM_IPC } from './platform-ipc.ts'
 import { markDocumentPlatform, syncWindowFullscreen } from './preload-platform.ts'
 import { syncNativeTheme } from './preload-theme.ts'
 import { syncWindowsAppearance } from './preload-windows.ts'
+import { syncLinuxAppearance } from './preload-linux.ts'
 import { installMandatoryUpdateOverlay } from './preload-mandatory-overlay.ts'
 import { createDesktopBrowserBridge } from './preload-browser.ts'
 
@@ -55,6 +56,18 @@ function createProductApi(): DshDesktopProductApi {
         return () => { ipcRenderer.off(DESKTOP_IPC.updatesPresentation, handle) }
       },
     },
+    window: {
+      minimize: () => { void ipcRenderer.invoke(DESKTOP_IPC.windowControl, 'minimize') },
+      toggleMaximize: () => { void ipcRenderer.invoke(DESKTOP_IPC.windowControl, 'maximize') },
+      close: () => { void ipcRenderer.invoke(DESKTOP_IPC.windowControl, 'close') },
+      subscribe(listener) {
+        const handle = (_event: Electron.IpcRendererEvent, state: { maximized: boolean }): void => {
+          listener(state.maximized)
+        }
+        ipcRenderer.on(DESKTOP_IPC.windowState, handle)
+        return () => { ipcRenderer.off(DESKTOP_IPC.windowState, handle) }
+      },
+    },
   }
 }
 
@@ -72,6 +85,7 @@ if (location.protocol === `${SCHEME}:` && location.hostname === 'app') {
     else body.setAttribute('tabindex', previous)
   })
   syncWindowsAppearance()
+  syncLinuxAppearance()
   if (process.platform === 'win32') installMandatoryUpdateOverlay()
   contextBridge.exposeInMainWorld('__DSH_DIRECTORY_PICKER__', {
     pick: () => ipcRenderer.invoke(DESKTOP_IPC.directoryPick) as Promise<string | null>,

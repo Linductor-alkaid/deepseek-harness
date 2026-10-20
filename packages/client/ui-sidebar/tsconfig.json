@@ -33,7 +33,7 @@
       "path": "../ui-session"
     },
     {
-      "path": "../ui-layout"
+      "path": "../ui-layout/tsconfig.client.json"
     },
     {
       "path": "../locale/tsconfig.client.json"

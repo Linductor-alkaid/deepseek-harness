@@ -13,6 +13,15 @@
   padding-top: var(--dsh-windows-titlebar-height);
 }
 
+/* Linux Electron: the renderer paints the drag strip at the window's top, and
+   Electron composes drag regions from geometry regardless of stacking, so a
+   control inside the strip would drag the window instead of receiving clicks.
+   The surface starts below the strip, which also keeps the strip's window
+   controls live; fullscreen drops the strip and the surface takes the window. */
+:global(html[data-linux-titlebar]) .overlay {
+  top: var(--dsh-frame-chrome-top, 0px);
+}
+
 /* The macOS shell's drag row: on darwin this bar IS the window's top strip, and
    ui-web base.css declares the one darwin rule over the `data-window-drag` mark.
    Windows keeps the native caption row as its drag surface instead — this bar

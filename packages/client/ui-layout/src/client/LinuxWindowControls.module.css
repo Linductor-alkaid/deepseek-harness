@@ -1,0 +1,92 @@
+/* Linux caption controls. The window has no native frame, so the strip that
+   drags the window also carries the buttons that act on it. */
+
+.controls {
+  display: flex;
+  align-items: center;
+  -webkit-app-region: no-drag;
+}
+
+.button,
+.close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--dsw-radius-xs);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  cursor: default;
+}
+
+.button:hover {
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.close:hover {
+  background: var(--dsw-alias-interactive-bg-hover-danger);
+  color: var(--dsw-alias-label-error);
+}
+
+.minimize {
+  width: 10px;
+  height: 1px;
+  background: currentColor;
+}
+
+.maximize {
+  width: 10px;
+  height: 10px;
+  border: 1px solid currentColor;
+  border-radius: 1px;
+}
+
+/* The restore glyph is the maximized square with the second frame above it. */
+.restore {
+  position: relative;
+  width: 9px;
+  height: 7px;
+  margin-top: 4px;
+  border: 1px solid currentColor;
+  border-radius: 1px;
+}
+
+.restore::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 2px;
+  width: 9px;
+  height: 3px;
+  border: 1px solid currentColor;
+  border-bottom: none;
+  border-radius: 1px 1px 0 0;
+}
+
+.cross {
+  position: relative;
+  width: 10px;
+  height: 10px;
+}
+
+.cross::before,
+.cross::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+}
+
+.cross::before {
+  transform: rotate(45deg);
+}
+
+.cross::after {
+  transform: rotate(-45deg);
+}

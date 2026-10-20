@@ -94,6 +94,39 @@ it('exposes asynchronous boot only to the local application document', async () 
   expect(electron.contextBridge.exposeInMainWorld.mock.calls.some(([name]) => name === 'dshDesktopBoot')).toBe(false)
 })
 
+it('exposes the window operations the Linux caption controls request', async () => {
+  vi.stubGlobal('location', new URL('dsh-app://app/index.html'))
+  await import('../src/preload-app.ts')
+  const api = electron.contextBridge.exposeInMainWorld.mock.calls.find(([name]) => name === 'dshDesktop')?.[1] as DshDesktopProductApi
+  api.window.minimize()
+  api.window.toggleMaximize()
+  api.window.close()
+  expect(electron.ipcRenderer.invoke.mock.calls).toEqual([
+    [DESKTOP_IPC.windowControl, 'minimize'],
+    [DESKTOP_IPC.windowControl, 'maximize'],
+    [DESKTOP_IPC.windowControl, 'close'],
+  ])
+})
+
+it('reports the maximized state the shell publishes to the window bridge', async () => {
+  vi.stubGlobal('location', new URL('dsh-app://app/index.html'))
+  await import('../src/preload-app.ts')
+  const api = electron.contextBridge.exposeInMainWorld.mock.calls.find(([name]) => name === 'dshDesktop')?.[1] as DshDesktopProductApi
+  const listener = vi.fn()
+  // The preload registers its own window-state listener for the document
+  // marker, so the bridge's listener is the one added by the subscription.
+  const before = electron.ipcRenderer.on.mock.calls.length
+  const dispose = api.window.subscribe(listener)
+  const handler = electron.ipcRenderer.on.mock.calls[before]?.[1] as
+    (event: unknown, state: { maximized: boolean }) => void
+  handler({}, { maximized: true })
+  expect(listener).toHaveBeenCalledWith(true)
+  handler({}, { maximized: false })
+  expect(listener).toHaveBeenCalledWith(false)
+  dispose()
+  expect(electron.ipcRenderer.off).toHaveBeenCalledWith(DESKTOP_IPC.windowState, handler)
+})
+
 it('exposes a directory picker only to the local application document', async () => {
   vi.stubGlobal('location', new URL('dsh-app://app/'))
   await import('../src/preload-app.ts')

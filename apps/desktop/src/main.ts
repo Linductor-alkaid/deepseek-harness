@@ -228,6 +228,9 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
       visualEffectState: 'active' as const,
       backgroundColor: '#00000000',
     } : {}),
+    // Linux draws no native caption, so the primary window drops its frame and
+    // the renderer paints the caption strip and its own window controls.
+    ...(process.platform === 'linux' && primary ? { frame: false as const } : {}),
     webPreferences: {
       preload,
       nodeIntegration: false,
@@ -242,7 +245,7 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
     if (['http:', 'https:'].includes(new URL(url).protocol)) void shell.openExternal(url)
     return { action: 'deny' }
   })
-  if (process.platform === 'darwin' || process.platform === 'win32') {
+  if (process.platform === 'darwin' || process.platform === 'win32' || process.platform === 'linux') {
     // Fullscreen hides native window controls; overlays drop their caption clearance.
     const sendFullscreen = (): void => {
       if (!window.isDestroyed()) window.webContents.send(DESKTOP_IPC.windowFullscreen, window.isFullScreen())
@@ -750,6 +753,25 @@ async function main(): Promise<void> {
     if (mainWindow === undefined || event.sender !== mainWindow.webContents) return
     if (source === 'light' || source === 'dark' || source === 'system') nativeTheme.themeSource = source
   })
+  // The renderer's caption controls drive the window the shell owns; only the
+  // main window may ask.
+  ipcMain.handle(DESKTOP_IPC.windowControl, (event, action: unknown) => {
+    const window = mainWindow
+    if (window === undefined || event.sender !== window.webContents
+      || event.senderFrame !== window.webContents.mainFrame) return
+    if (action === 'minimize') { window.minimize(); return }
+    if (action === 'maximize') {
+      if (window.isMaximized()) window.unmaximize()
+      else window.maximize()
+      return
+    }
+    if (action === 'close') {
+      // A platform without a Dock or a tray has no way back to a hidden window,
+      // so the close control quits the application instead of hiding it.
+      if (process.platform === 'linux') { app.quit(); return }
+      window.close()
+    }
+  })
   ipcMain.handle(DESKTOP_IPC.localeBootstrap, async (event) => {
     if (event.sender !== mainWindow?.webContents || event.senderFrame !== mainWindow.webContents.mainFrame
       || new URL(event.senderFrame.url).origin !== new URL(applicationUrl).origin) {
@@ -1097,6 +1119,16 @@ async function main(): Promise<void> {
       window.on('show', () => { sessionEnding = false })
     }
     window.on('closed', () => { if (mainWindow === window) mainWindow = undefined })
+    if (process.platform === 'linux') {
+      // The renderer draws the caption controls, so it needs the maximized state
+      // to choose between the maximize and the restore glyph.
+      const sendWindowState = (): void => {
+        if (!window.isDestroyed()) window.webContents.send(DESKTOP_IPC.windowState, { maximized: window.isMaximized() })
+      }
+      window.on('maximize', sendWindowState)
+      window.on('unmaximize', sendWindowState)
+      window.webContents.on('did-finish-load', sendWindowState)
+    }
     window.webContents.on('console-message', (details) => {
       if (details.level !== 'error') return
       rendererConsole.push(`${details.sourceId}:${String(details.lineNumber)} ${details.message}`)

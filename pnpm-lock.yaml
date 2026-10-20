@@ -691,6 +691,9 @@ importers:
       '@deepseek-ai/dsh-client-shortcuts':
         specifier: workspace:*
         version: link:../../packages/client/shortcuts
+      '@deepseek-ai/dsh-client-ui-layout':
+        specifier: workspace:*
+        version: link:../../packages/client/ui-layout
       '@deepseek-ai/dsh-client-ui-primitives':
         specifier: workspace:*
         version: link:../../packages/client/ui-primitives

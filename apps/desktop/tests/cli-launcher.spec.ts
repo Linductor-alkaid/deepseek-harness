@@ -85,3 +85,45 @@ it.skipIf(process.platform === 'win32')('resolves chained command symlinks witho
   expect(await run.closed, run.stderr()).toBe(23)
   expect(JSON.parse(run.stdout())).toMatchObject({ args, cwd: f.root, nodeMode: '1' })
 })
+
+it.skipIf(process.platform === 'win32')('starts the application executable beside the resources directory on Linux', async () => {
+  // Linux keeps the executable next to the resources directory instead of inside Contents/MacOS.
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'dsh-cli-linux-')))
+  const children: ChildProcessWithoutNullStreams[] = []
+  const exits: Promise<unknown>[] = []
+  onTestFinished(async () => {
+    for (const child of children) {
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
+    }
+    await Promise.allSettled(exits)
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+  })
+  const resources = join(root, 'resources')
+  const cli = join(resources, 'runtime', 'cli')
+  prepareDesktopCli(cli, 'linux')
+  const electron = join(root, 'deepseek-harness')
+  symlinkSync(process.execPath, electron)
+  const entry = join(resources, 'app.asar', 'dsh', 'node_modules', '@deepseek-ai', 'dsh-desktop-host', 'lib', 'cli.js')
+  mkdirSync(dirname(entry), { recursive: true })
+  writeFileSync(join(dirname(entry), 'package.json'), '{"type":"module"}\n')
+  writeFileSync(entry, [
+    'process.stdout.write(JSON.stringify({ args: process.argv.slice(2), cwd: process.cwd(),'
+      + ' nodeMode: process.env.ELECTRON_RUN_AS_NODE }))',
+    'process.exitCode = 23',
+    '',
+  ].join('\n'))
+  const command = join(cli, 'bin', 'dsh')
+  const child = spawn(command, ['plugin', 'hello'], { cwd: root, env: { ...process.env }, stdio: 'pipe' })
+  children.push(child)
+  const closed = new Promise<number | null>((resolvePromise, reject) => {
+    child.once('error', reject)
+    child.once('close', resolvePromise)
+  })
+  exits.push(closed)
+  let stdout = ''
+  let stderr = ''
+  child.stdout.setEncoding('utf8').on('data', (text: string) => { stdout += text })
+  child.stderr.setEncoding('utf8').on('data', (text: string) => { stderr += text })
+  expect(await closed, stderr).toBe(23)
+  expect(JSON.parse(stdout)).toEqual({ args: ['plugin', 'hello'], cwd: root, nodeMode: '1' })
+})

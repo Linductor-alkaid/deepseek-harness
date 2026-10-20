@@ -53,4 +53,10 @@ describe('desktop upload command', () => {
       expect(tagDesktopRelease).not.toHaveBeenCalled()
     }
   })
+
+  it('refuses a Linux target because only published targets reach an update feed', async () => {
+    await expect(uploadDesktopTarget(['linux-x64'])).rejects.toThrow(/unsupported target/u)
+    expect(createDesktopUploadPlan).not.toHaveBeenCalled()
+    expect(uploadDesktopRelease).not.toHaveBeenCalled()
+  })
 })

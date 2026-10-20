@@ -21,6 +21,7 @@ import type {
 } from '@deepseek-ai/dsh-client-ui-slots'
 import { CENTER_MIN, clampWidth, computeColumns, RIGHTBAR_DEFAULT_RATIO, RIGHTBAR_MAX_RATIO, RIGHTBAR_MIN, SIDEBAR_AUTO_COLLAPSE, SIDEBAR_COLLAPSED, SIDEBAR_DEFAULT } from './columns.ts'
 import { DocumentTitle } from './DocumentTitle.tsx'
+import { LinuxWindowControls } from './LinuxWindowControls.tsx'
 import type { createLayoutStore } from './stores.ts'
 import css from './AppFrame.module.css'
 
@@ -166,6 +167,9 @@ export function AppFrame({
   // Desktop reopen controls occupy the frame's shell.leading seat (macOS) or
   // the Windows caption row; neither platform keeps an icon rail.
   const darwin = document.documentElement.dataset.platform === 'darwin'
+  // The Linux window draws no native caption, so the frame paints the strip and
+  // the controls that act on it.
+  const linux = document.documentElement.hasAttribute('data-linux-titlebar')
   const collapsedWidth = darwin
     || document.documentElement.hasAttribute('data-windows-titlebar') ? 0 : SIDEBAR_COLLAPSED
   // Opening on a narrow frame collapses the left sidebar. Eligibility must
@@ -295,6 +299,11 @@ export function AppFrame({
       {leadingMounted && (
         <div className={css.leadingSeat} data-shell-leading>
           {leading}
+        </div>
+      )}
+      {linux && (
+        <div className={css.linuxControls} data-shell-linux-controls>
+          <LinuxWindowControls t={t} />
         </div>
       )}
       {/* The collapsed rail is fixed-width: no resize handle while closed. */}

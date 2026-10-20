@@ -65,7 +65,7 @@ export function createElectronBuilderConfig(
   if (skipNotarization && (unsigned || resolvedPlatform !== 'darwin')) throw new Error('Skipping notarization requires a signed macOS build')
   const packagesMacOS = targetPlatform === 'darwin' || (targetPlatform === undefined && hostPlatform === 'darwin')
   const packagesWindows = resolvedPlatform === 'win32'
-  const policy = packagesMacOS && unsigned ? undefined : resolveDesktopPolicyEnvironment(env)
+  const policy = (packagesMacOS || resolvedPlatform === 'linux') && unsigned ? undefined : resolveDesktopPolicyEnvironment(env)
   if (resolvedPlatform === 'win32') installWindowsDirectoryInstaller()
   const macOSSigning = packagesMacOS && !unsigned ? resolveMacOSSigningEnvironment(env) : undefined
   if (packagesMacOS && !unsigned && !skipNotarization) resolveMacOSNotarizationEnvironment(env)
@@ -247,7 +247,41 @@ export function createElectronBuilderConfig(
     },
     linux: {
       category: 'Development',
-      target: ['AppImage'],
+      icon: fileURLToPath(new URL('../resources/icon.png', import.meta.url)),
+      // The name becomes the update-alternatives alternative, the desktop entry's
+      // Icon value and the installed icon file's name; a slash or a space makes
+      // update-alternatives reject the link and makes gtk-update-icon-cache call
+      // the hicolor cache invalid, which loses the launcher icon.
+      executableName: 'deepseek-harness',
+      // The window's WM_CLASS must match the desktop entry for the task bar to associate them.
+      syncDesktopName: true,
+      target: ['deb', 'AppImage'],
+    },
+    deb: {
+      // The Debian Maintainer field identifies who owns the package. The default names the
+      // product without inventing a contact address; a builder who publishes their own
+      // packages sets a real one through the environment.
+      maintainer: env.DSH_DESKTOP_DEB_MAINTAINER ?? 'DeepSeek Harness',
+      // electron-builder's default list names the pre-24.04 Ubuntu runtime libraries. The
+      // 64-bit time_t transition renamed the GTK, AT-SPI and ALSA packages, so each entry
+      // offers the t64 name first and the original name as the alternative. bubblewrap is
+      // the confined-shell runner on Linux; older releases ship nothing that pulls it in.
+      depends: [
+        'libgtk-3-0t64 | libgtk-3-0',
+        'libnotify4',
+        'libnss3',
+        'libxss1',
+        'libxtst6',
+        'xdg-utils',
+        'bubblewrap',
+        'libatspi2.0-0t64 | libatspi2.0-0',
+        'libuuid1',
+        'libsecret-1-0',
+        'libasound2t64 | libasound2',
+        'libgbm1',
+        'libdrm2',
+        'libxkbcommon0',
+      ],
     },
     nsis: {
       installerSidebar: join(buildPaths.root, 'installer-ui', 'uninstaller-sidebar.bmp'),

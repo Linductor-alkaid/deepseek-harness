@@ -1,0 +1,164 @@
+name: Package Desktop · Linux
+
+run-name: Package the Linux desktop package (${{ github.ref_name }})
+
+on:
+  push:
+    branches: ['**']
+    tags: ['dsh-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-desktop-package-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DSH_TELEMETRY_DISABLED: '1'
+
+jobs:
+  package:
+    name: Build the Debian package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v5.0.0
+        with:
+          package_json_file: package.json
+
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The Landlock launcher and the musl flavour of the flock addon are static
+      # musl builds; without this toolchain the packaged runtime has no binaries.
+      - name: Install musl toolchain
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -yq musl-tools
+
+      - name: Build the native system binaries
+        run: pnpm --dir native/system run build:native
+
+      - name: Package the Debian package and the AppImage
+        run: pnpm run package:desktop:linux:x64
+
+      - name: Collect the artifacts
+        run: |
+          mkdir -p dist
+          cp apps/desktop/.desktop-build/targets/linux-x64/unsigned-artifacts/*.deb dist/
+          cp apps/desktop/.desktop-build/targets/linux-x64/unsigned-artifacts/*.AppImage dist/
+          ls -la dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-desktop-package
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  verify:
+    name: Verify on Ubuntu ${{ matrix.release }}
+    needs: package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        release: ['20.04', '22.04', '24.04']
+    container:
+      image: ubuntu:${{ matrix.release }}
+    env:
+      # Installing the package pulls a newer tzdata on 20.04, whose debconf
+      # dialog has no terminal to answer in; noninteractive keeps apt moving.
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-desktop-package
+          path: dist
+
+      # A release leaves the main archive for the archive of retired releases
+      # some time after standard support ends, and the move date is not known
+      # ahead: focal still answers on the main archive and 404s on the retired
+      # one. Update the default sources first and fall back to the retired
+      # archive when the main one stops serving the release.
+      - name: Prepare the package sources
+        run: |
+          if ! apt-get update -q; then
+            sed -i -e 's|archive.ubuntu.com|old-releases.ubuntu.com|g' \
+                   -e 's|security.ubuntu.com|old-releases.ubuntu.com|g' \
+                   /etc/apt/sources.list
+            apt-get update -q
+          fi
+
+      # The dependency list names the 64-bit time_t runtime libraries first and
+      # the original names as alternatives, so one package installs on every
+      # supported release. A failure here names the release that cannot.
+      - name: Install the package
+        run: apt-get install -yq ./dist/*.deb
+
+      - name: Verify the installed layout
+        run: |
+          set -eu
+          test -x "/opt/DeepSeek Harness/deepseek-harness"
+          test -f "/usr/share/applications/DeepSeek Harness.desktop"
+          test -x "/opt/DeepSeek Harness/resources/runtime/cli/bin/dsh"
+          grep -q '^Exec=' "/usr/share/applications/DeepSeek Harness.desktop"
+          "/opt/DeepSeek Harness/resources/runtime/cli/bin/dsh" --version
+
+      # The shell starts the bundled runtime and the Host; a booting Host
+      # proves the packaged tree, the runtime and the workspace all resolve.
+      # The container runs as root, which Chromium refuses without --no-sandbox.
+      - name: Start the application
+        run: |
+          set -eu
+          apt-get install -yq xvfb
+          xvfb-run -a "/opt/DeepSeek Harness/deepseek-harness" --no-sandbox > /tmp/app.log 2>&1 &
+          for _ in $(seq 1 60); do
+            if grep -q 'dsh web: http' /tmp/app.log; then break; fi
+            if ! pgrep -f "DeepSeek Harness" > /dev/null; then
+              cat /tmp/app.log
+              echo "the application exited before its Host started"
+              exit 1
+            fi
+            sleep 2
+          done
+          grep -q 'dsh web: http' /tmp/app.log || { cat /tmp/app.log; exit 1; }
+          cat /tmp/app.log
+
+  release:
+    name: Publish the release
+    needs: [package, verify]
+    if: startsWith(github.ref, 'refs/tags/dsh-v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-desktop-package
+          path: dist
+
+      - name: Attach the packages to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if ! gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --verify-tag --title "$RELEASE_TAG" \
+              --notes 'Debian package and AppImage for the DeepSeek Harness desktop application, built by the Linux packaging target. The package is unsigned and carries no update feed.'
+          fi
+          gh release upload "$RELEASE_TAG" dist/*.deb dist/*.AppImage

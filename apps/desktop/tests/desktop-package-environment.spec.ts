@@ -2,11 +2,12 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { loadDesktopPackageEnvironment, localMacOSPackageEnvironment, validateDesktopPackageEnvironment } from '../scripts/desktop-package-environment.mjs'
+import { loadDesktopPackageEnvironment, localLinuxPackageEnvironment, localMacOSPackageEnvironment, validateDesktopPackageEnvironment } from '../scripts/desktop-package-environment.mjs'
 import { resolveWindowsPackageSettings } from '../scripts/windows-package-settings.mjs'
 
 const WINDOWS = { platform: 'win32', arch: 'x64' } as const
 const MACOS = { platform: 'darwin', arch: 'arm64' } as const
+const LINUX = { platform: 'linux', arch: 'x64' } as const
 const POLICY = { DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://policy.example.com',
   DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: JSON.stringify({ allowedAuthOrigins: ['https://login.example.com'] }) }
 const RELEASE = { ...POLICY, DSH_DESKTOP_APP_ID: 'com.example.desktop', DOWNLOAD_TEST_ORIGIN: 'https://updates.example.com',
@@ -40,6 +41,44 @@ describe('Desktop local packaging configuration', () => {
     expect(() => { validateDesktopPackageEnvironment(local, MACOS, { unsigned: true }) }).not.toThrow()
     expect(parent.DSH_DESKTOP_UNSIGNED).toBe('0')
     expect(parent.DSH_DESKTOP_APP_ID).toBe('com.example.release')
+  })
+
+  it('selects local Linux defaults without reading a release configuration file', async () => {
+    const parent = {
+      PATH: 'build-tools', HTTPS_PROXY: 'http://proxy.example:8080', DSH_DESKTOP_NPM_REGISTRY: 'https://registry.npmmirror.com',
+      DSH_DESKTOP_APP_ID: 'com.example.release', DSH_DESKTOP_UNSIGNED: '0',
+      DSH_DESKTOP_AUTO_UPDATE_ENV: 'production', DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: 'invalid-json',
+      DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://policy.example.com',
+      DSH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Release identity', CSC_LINK: 'missing.p12',
+      APPLE_API_KEY: 'missing.p8', DOWNLOAD_PROD_COS_SECRET_KEY: 'unused-secret',
+    }
+    const local = localLinuxPackageEnvironment(parent)
+    expect(local).toEqual({
+      PATH: parent.PATH, HTTPS_PROXY: parent.HTTPS_PROXY, DSH_DESKTOP_NPM_REGISTRY: parent.DSH_DESKTOP_NPM_REGISTRY,
+      DSH_DESKTOP_APP_ID: 'com.deepseek.harness', DSH_DESKTOP_UNSIGNED: '1',
+    })
+    expect(parent.DSH_DESKTOP_UNSIGNED).toBe('0')
+    expect(parent.DSH_DESKTOP_APP_ID).toBe('com.example.release')
+    await withDirectory(async (directory) => {
+      // A Linux build owns no configuration file, so even an unreadable or foreign one changes nothing.
+      await writeFile(join(directory, '.env.windows'), 'APPLE_APP_SPECIFIC_PASSWORD=secret-sentinel\n')
+      expect(loadDesktopPackageEnvironment('linux', parent, directory)).toEqual(local)
+      expect(loadDesktopPackageEnvironment('linux', {}, join(directory, 'absent'))).toEqual({
+        DSH_DESKTOP_APP_ID: 'com.deepseek.harness', DSH_DESKTOP_UNSIGNED: '1',
+      })
+    })
+  })
+
+  it('accepts a Linux target only in unsigned mode and checks no release policy', () => {
+    const local = localLinuxPackageEnvironment({})
+    expect(() => { validateDesktopPackageEnvironment(local, LINUX, { unsigned: true }) }).not.toThrow()
+    expect(() => { validateDesktopPackageEnvironment(local, LINUX) }).toThrow(/Linux artifacts are unsigned/u)
+    expect(() => { validateDesktopPackageEnvironment(local, LINUX, { prepareOnly: true }) }).toThrow(/Linux artifacts are unsigned/u)
+    // The application identifier and the npm registry are the only release inputs a Linux build has.
+    expect(() => { validateDesktopPackageEnvironment({}, LINUX, { unsigned: true }) }).toThrow(/DSH_DESKTOP_APP_ID/u)
+    expect(() => {
+      validateDesktopPackageEnvironment({ DSH_DESKTOP_APP_ID: 'com.deepseek.harness', DSH_DESKTOP_NPM_REGISTRY: 'not-a-url' }, LINUX, { unsigned: true })
+    }).toThrow(/DSH_DESKTOP_NPM_REGISTRY/u)
   })
 
   it('takes cache concurrency from the Windows file and defaults to four without ambient overrides', async () => {

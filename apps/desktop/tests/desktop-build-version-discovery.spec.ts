@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   desktopBuildDateSegment,
   suggestDesktopBuildVersion,
@@ -88,5 +88,38 @@ describe('desktop build version discovery', () => {
     ])
     await expect(suggestDesktopBuildVersion({ productVersion: PRERELEASE, target: 'win-x64', environment: {}, date: DATE, artifactsRoot }))
       .resolves.toBe(`${PRERELEASE}.${DATE}.3`)
+  })
+
+  it('counts Linux AppImage artifacts written beside the other targets', async () => {
+    // electron-builder names an x64 AppImage "x86_64"; the produced Linux artifact carries that name.
+    const artifactsRoot = await artifactsWith([
+      `deepseek-harness-${PRERELEASE}.${DATE}.1-linux-x86_64-unsigned.AppImage`,
+      `deepseek-harness-${PRERELEASE}.${DATE}.4-linux-x86_64-unsigned.AppImage`,
+    ])
+    await expect(suggestDesktopBuildVersion({ productVersion: PRERELEASE, target: 'linux-x64', environment: {}, date: DATE, artifactsRoot }))
+      .resolves.toBe(`${PRERELEASE}.${DATE}.5`)
+  })
+
+  it('numbers a Linux build from local artifacts because no remote feed holds its versions', async () => {
+    const artifactsRoot = await artifactsWith([`deepseek-harness-${PRERELEASE}.${DATE}.2-linux-x86_64-unsigned.AppImage`])
+    const messages: string[] = []
+    const write = vi.spyOn(process.stdout, 'write').mockImplementation((text: unknown) => {
+      messages.push(String(text))
+      return true
+    })
+    try {
+      await expect(suggestDesktopBuildVersion({
+        productVersion: PRERELEASE, target: 'linux-x64', date: DATE, artifactsRoot,
+        // A configured destination would be queried for every published target.
+        environment: {
+          DSH_DESKTOP_AUTO_UPDATE_ENV: 'test', DOWNLOAD_TEST_ORIGIN: 'https://desktop-updates.example.com',
+          DOWNLOAD_TEST_COS_SECRET_ID: 'fixture-id', DOWNLOAD_TEST_COS_SECRET_KEY: 'fixture-key',
+        },
+      })).resolves.toBe(`${PRERELEASE}.${DATE}.3`)
+    } finally {
+      write.mockRestore()
+    }
+    expect(messages.join('')).toContain('local artifact')
+    expect(messages.join('')).not.toContain('the update bucket did not answer completely')
   })
 })

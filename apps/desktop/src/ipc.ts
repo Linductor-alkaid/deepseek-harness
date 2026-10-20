@@ -3,6 +3,7 @@
 import type { DesktopKeyboardApi, DesktopShortcutsApi } from '@deepseek-ai/dsh-client-shortcuts/protocol'
 import type { IpcMainInvokeEvent } from 'electron'
 import type { DesktopBrowserBridge } from '@deepseek-ai/dsh-client-ui-sidebar-browser/types'
+import type { DesktopWindowApi } from '@deepseek-ai/dsh-client-ui-layout/types'
 
 /** IPC channel names kept private to the desktop application bundle. */
 export const DESKTOP_IPC = {
@@ -29,6 +30,8 @@ export const DESKTOP_IPC = {
   updatesPresentation: 'dsh-desktop:updates-presentation',
   nativeThemeSet: 'dsh-desktop:native-theme-set',
   windowFullscreen: 'dsh-desktop:window-fullscreen',
+  windowControl: 'dsh-desktop:window-control',
+  windowState: 'dsh-desktop:window-state',
   windowsAppearance: 'dsh-desktop:windows-appearance',
   windowsMenu: 'dsh-desktop:windows-menu',
 } as const
@@ -74,6 +77,7 @@ export interface DshDesktopProductApi {
   readonly browser: DesktopBrowserBridge
   readonly keyboard: DesktopKeyboardApi
   readonly shortcuts: DesktopShortcutsApi
+  readonly window: DesktopWindowApi
   /**
    * Local machine description for the feedback questionnaire.
    * @returns `name=value` fields separated by `; `, with no hostname, user name, or serial number.

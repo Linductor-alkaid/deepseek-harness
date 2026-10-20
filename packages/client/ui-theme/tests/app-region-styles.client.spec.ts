@@ -25,11 +25,14 @@ const SHELL_SHEET = 'client/web/src/base.css'
 /** The mark that stylesheet's rule selects, as authored. */
 const SHELL_DRAG_SELECTOR = "html[data-platform='darwin'] [data-window-drag]"
 
-/** The frame's Windows caption row, relative to packages/; the other platform's chrome. */
-const WINDOWS_CAPTION = 'client/ui-layout/src/client/AppFrame.module.css'
+/** The frame's caption rows, relative to packages/; the chrome of the platforms that own one. */
+const FRAME_CAPTION = 'client/ui-layout/src/client/AppFrame.module.css'
 
-/** That caption row's selector, as authored. */
+/** The Windows caption row's selector, as authored. */
 const WINDOWS_CAPTION_SELECTOR = ':global([data-windows-titlebar]) .frame::before'
+
+/** The Linux caption row's selector, as authored. */
+const LINUX_CAPTION_SELECTOR = ':global([data-linux-titlebar]) .frame::before'
 
 /** The mark a chrome row puts on the element that owns its drag. */
 const DRAG_MARK = 'data-window-drag'
@@ -241,10 +244,12 @@ describe('window drag-region ownership', () => {
   it('declares the window drag surface in exactly two places', () => {
     // Rows mark themselves instead of each sheet declaring its own drag, so the
     // tree holds one darwin rule — the mark rule in the shell sheet — plus the
-    // Windows caption row, which is that platform's own chrome. A third
-    // declaration, a per-sheet row rule, or a darwin band on the frame fails here.
+    // frame's own caption rows: each platform that owns a caption declares that
+    // platform's chrome, and the shell's single mark rule still covers every
+    // marked row. A third file, a per-sheet row rule, or a darwin band on the
+    // frame fails here.
     expect(dragOwners()).toEqual([
-      { file: WINDOWS_CAPTION, selectors: [WINDOWS_CAPTION_SELECTOR] },
+      { file: FRAME_CAPTION, selectors: [WINDOWS_CAPTION_SELECTOR, LINUX_CAPTION_SELECTOR] },
       { file: SHELL_SHEET, selectors: [SHELL_DRAG_SELECTOR] },
     ])
   })

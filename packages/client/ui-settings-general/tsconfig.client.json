@@ -25,6 +25,6 @@
     { "path": "../ui-sidebar" },
     { "path": "../shortcuts/tsconfig.client.json" },
     { "path": "../modules" },
-    { "path": "../ui-layout" }
+    { "path": "../ui-layout/tsconfig.client.json" }
   ]
 }

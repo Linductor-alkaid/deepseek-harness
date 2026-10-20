@@ -243,6 +243,20 @@ describe('AppFrame', () => {
     }
   })
 
+  it('paints the Linux caption controls only while the Linux marker is present', () => {
+    // A browser document, and a desktop document on any other platform, keeps
+    // its ordinary chrome: the frame draws no caption row of its own.
+    const { frame } = mountFrame()
+    expect(frame.querySelector('[data-shell-linux-controls]')).toBeNull()
+    document.documentElement.setAttribute('data-linux-titlebar', '')
+    try {
+      const { frame } = mountFrame()
+      expect(frame.querySelector('[data-shell-linux-controls]')).not.toBeNull()
+    } finally {
+      document.documentElement.removeAttribute('data-linux-titlebar')
+    }
+  })
+
   it('keeps the closed sidebar mounted at its 56px rail without a handle', () => {
     const { frame, instance, sidebarOwner, getByTestId, queryByTestId } = mountFrame()
     act(() => { instance.actions.toggleSidebar() })

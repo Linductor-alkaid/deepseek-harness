@@ -40,7 +40,9 @@ root 作用域的单一 `shell.bottom` slot 横跨三列下方的整行。占用
 
 Windows Electron 的 `data-windows-titlebar` 标记在所有列上方预留顶栏高度，并移除收起后的侧栏轨道。内容区仅左上角保留 16px 圆角，其余角和内部交界处保持直角。框架发布 `--dsh-windows-content-radius` 和 `--dsh-windows-sidebar-width`，供 ui-sidebar-right 的全屏圆角及侧栏避让使用。普通 Web 文档不会获得该标记；macOS 保留其独立布局。
 
-根元素通过 `--dsh-frame-top-clearance` 发布顶栏占用量（macOS 为 48px，Windows 为标题栏高度），通过 `--dsh-frame-overlay-top` 为弹窗和菜单再留出 20px。原生全屏时浮层起点降为 20px；弹窗仍保留自身 24px 的最小边距。`--dsh-frame-chrome-top` 让模态遮罩不绘制 Windows 顶栏区域，全屏时归零。覆盖整个视口的模态层仍阻挡背景点击。普通浏览器文档不发布这些值。
+Linux Electron 的 `data-linux-titlebar` 标记在所有列上方预留同样的顶栏高度，框架自行绘制该标题栏行：窗口没有原生边框，因此这条带子既是拖拽区，最小化、最大化／还原与关闭三个控件也由框架画在其右端。这些控件通过桌面端私有通道向外壳请求动作，外壳回告最大化状态，中间那颗按钮据此在最大化与还原图形之间切换。该标记仅由桌面 preload 设置，因此 Linux 上的浏览器文档保留普通外观。标题栏与其控件在全屏时消失。
+
+根元素通过 `--dsh-frame-top-clearance` 发布顶栏占用量（macOS 为 48px，Windows 与 Linux 为标题栏高度），通过 `--dsh-frame-overlay-top` 为弹窗和菜单再留出 20px。原生全屏时浮层起点降为 20px；弹窗仍保留自身 24px 的最小边距。`--dsh-frame-chrome-top` 让模态遮罩不绘制 Windows 顶栏区域，全屏时归零。覆盖整个视口的模态层仍阻挡背景点击。普通浏览器文档不发布这些值。
 
 ### 主题呈现
 

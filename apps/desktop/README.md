@@ -152,9 +152,11 @@ Update copy preserves the complete version, including prerelease suffixes, witho
 
 Electron chooses typed English or Chinese shell copy from its application locale and falls back to English. The macOS application bundle declares English and Simplified Chinese in `CFBundleLocalizations`, allowing macOS to match the initial application language to the user’s preferred languages. Saved Client UI language preferences still take precedence for the main interface. On Windows, the main document's language updates desktop menus, recovery and update prompts. The repository Client UI i18n gate checks desktop sources.
 
-Windows and macOS relay native fullscreen transitions and the state after each page load to the renderer, so overlays can adapt their caption clearance.
+Windows, macOS and Linux relay native fullscreen transitions and the state after each page load to the renderer, so overlays can adapt their caption clearance.
 
 Windows uses a 40-DIP caption with native window controls and colors synchronized from the application palette. Localized Application and Edit entries beside the sidebar toggle open native popup menus. They mount only after the application frame publishes its shell overlay seat, and remain absent during startup loading. Application provides Check for Updates and Exit; Edit provides undo, redo, cut, copy, paste, delete, and select all by sending the corresponding keys to the focused editor, independently of custom shortcut bindings. Plugin management uses the main application's Plugins page. No separate native menu row appears on Alt. Other platforms retain their native menus. Editable fields retain keyboard commands and a context menu without shortcut labels; Chromium supplies command availability, and selected read-only text offers Copy.
+
+Linux draws no native caption, so the primary window drops its frame and the renderer paints a 40-DIP caption strip with its own minimize, maximize-restore and close controls. The strip drags the window; the controls ask the shell over the private channel, and the shell answers the maximized state so the middle button switches glyphs. Closing the window quits the application on Linux, because that platform has neither a Dock nor a tray to bring a hidden window back; macOS and Windows hide the window instead.
 
 On macOS the custom menu retains Electron's standard Window menu and application hide commands, including Minimize (⌘M) and Hide (⌘H). Linux keeps the application and Edit menus.
 
@@ -359,6 +361,7 @@ An unpackaged Electron process uses `.desktop-build/development/project` under i
 - Account sign-in is not connected; the Sign in button is disabled. Windows material rendering still requires platform QA.
 
 - Release signing, notarization, update hosting, and previous-version installed-artifact qualification require the production release environment.
+- Linux Desktop artifacts are local unsigned builds — a Debian package and an AppImage: they carry no release signature, no update feed, and no mandatory-update policy, and the application does not install the `dsh` command on `PATH`. The Debian package names the runtime libraries it needs with the 64-bit time_t alternatives first and depends on the `bubblewrap` confined-shell runner, so it installs on Ubuntu 24.04, 22.04, and 20.04.
 - Dependency lifecycle scripts follow pnpm’s build permissions; Desktop provides no separate approval dialog.
 - The desktop shell shares sessions, settings, credentials, workspaces, and storage under `$DSH_HOME` with CLI dsh, while executable packages, plugin activation, and lockfiles remain separate.
 - Unpackaged startup on an Electron win32-arm64 host now succeeds, but the payload remains x64: the architecture check in `packages/skill/tool-workspace-dependencies/src/index.ts` compares the recorded payload architecture against the host `process.arch`, so the `load_workspace_dependencies` tool can still reject the primary runtime.

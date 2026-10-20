@@ -49,6 +49,59 @@
   border-right: none;
 }
 
+/* The Linux caption row: the window draws no native frame, so the strip the
+   renderer paints is both the drag region and the home of the window controls.
+   Its geometry mirrors the Windows caption. */
+:global([data-linux-titlebar]) .frame {
+  --dsh-linux-content-radius: 16px;
+  box-sizing: border-box;
+  padding-top: var(--dsh-linux-titlebar-height);
+  background: var(--dsw-specific-sidebar-fill);
+}
+
+:global([data-linux-titlebar]) .centerCol {
+  background: var(--dsw-alias-bg-base);
+  border-radius: var(--dsh-linux-content-radius) 0 0 0;
+  corner-shape: round;
+}
+
+:global([data-linux-titlebar]) .frame::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: var(--dsh-linux-titlebar-height);
+  background: var(--dsw-specific-sidebar-fill);
+  -webkit-app-region: drag;
+}
+
+:global([data-linux-titlebar]) .sidebarCol {
+  border-right: none;
+}
+
+/* The window controls sit over the caption row's right end, outside the drag
+   region so they keep receiving clicks. */
+.linuxControls {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  height: var(--dsh-linux-titlebar-height);
+  padding-right: 4px;
+  -webkit-app-region: no-drag;
+}
+
+/* Fullscreen takes the whole window, so the caption and its controls go away. */
+:global(html[data-linux-titlebar][data-fullscreen]) .frame {
+  padding-top: 0;
+}
+
+:global(html[data-linux-titlebar][data-fullscreen]) .frame::before,
+:global(html[data-linux-titlebar][data-fullscreen]) .linuxControls {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .frame[data-animating] {
     transition: none;
@@ -95,14 +148,22 @@
   --dsh-frame-chrome-top: var(--dsh-windows-titlebar-height);
 }
 
+/* The Linux caption clears the frame's content the same way. */
+:global(html[data-linux-titlebar]) {
+  --dsh-frame-top-clearance: var(--dsh-linux-titlebar-height);
+  --dsh-frame-chrome-top: var(--dsh-linux-titlebar-height);
+}
+
 /* Portalled overlays share a viewport inset without adding space to entry pages. */
 :global(html[data-platform='darwin']),
-:global(html[data-windows-titlebar]) {
+:global(html[data-windows-titlebar]),
+:global(html[data-linux-titlebar]) {
   --dsh-frame-overlay-top: calc(var(--dsh-frame-top-clearance) + 20px);
 }
 
 :global(html[data-platform='darwin'][data-fullscreen]),
-:global(html[data-windows-titlebar][data-fullscreen]) {
+:global(html[data-windows-titlebar][data-fullscreen]),
+:global(html[data-linux-titlebar][data-fullscreen]) {
   --dsh-frame-overlay-top: 20px;
   --dsh-frame-chrome-top: 0px;
 }

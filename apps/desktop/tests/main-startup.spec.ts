@@ -109,6 +109,11 @@ const harness = await vi.hoisted(async () => {
     readonly setFullScreen = vi.fn((flag: boolean) => { this.fullscreen = flag; this.emit(flag ? 'enter-full-screen' : 'leave-full-screen') })
     minimized = false
     isMinimized() { return this.minimized }
+    maximized = false
+    isMaximized() { return this.maximized }
+    readonly minimize = vi.fn(() => { this.minimized = true })
+    readonly maximize = vi.fn(() => { this.maximized = true; this.emit('maximize') })
+    readonly unmaximize = vi.fn(() => { this.maximized = false; this.emit('unmaximize') })
     visible = true
     isVisible() { return this.visible }
     isFocused() { return true }
@@ -839,7 +844,11 @@ describe('desktop main startup', () => {
     } else {
       expect(window.options).not.toHaveProperty('titleBarStyle')
       expect(window.options).not.toHaveProperty('vibrancy')
+      // Linux draws no native caption at all: the renderer paints the caption
+      // row and its own window controls.
+      expect(window.options).toMatchObject({ frame: false })
     }
+    if (platform !== 'linux') expect(window.options).not.toHaveProperty('frame')
     expect(harness.hosts).toHaveLength(0)
   })
 
@@ -855,7 +864,7 @@ describe('desktop main startup', () => {
     expect((await handler(new Request('dsh-app://foreign/index.html'))).status).toBe(404)
   })
 
-  it.each(['darwin', 'win32'] as const)('relays the %s fullscreen state on transitions and after each load', async (platform) => {
+  it.each(['darwin', 'win32', 'linux'] as const)('relays the %s fullscreen state on transitions and after each load', async (platform) => {
     vi.spyOn(process, 'platform', 'get').mockReturnValue(platform)
     await import('../src/main.ts')
     await harness.preparing.promise
@@ -878,14 +887,97 @@ describe('desktop main startup', () => {
     expect(sent()).toHaveLength(relayed)
   })
 
-  it.each(['linux'] as const)('registers no fullscreen relay on %s', async (platform) => {
-    vi.spyOn(process, 'platform', 'get').mockReturnValue(platform)
-    await import('../src/main.ts')
-    await harness.preparing.promise
-    const window = harness.windows[0]!
-    window.emit('enter-full-screen')
-    window.webContents.emit('did-finish-load')
-    expect(window.webContents.send.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.windowFullscreen)).toHaveLength(0)
+  describe('desktop window controls', () => {
+    it.each(['linux', 'win32', 'darwin'] as const)('minimizes and toggles the maximized state on %s', async (platform) => {
+      vi.spyOn(process, 'platform', 'get').mockReturnValue(platform)
+      await import('../src/main.ts')
+      await harness.preparing.promise
+      const window = harness.windows[0]!
+      const control = harness.handlers.get(DESKTOP_IPC.windowControl)!
+      const owned = { sender: window.webContents, senderFrame: window.webContents.mainFrame }
+      control(owned, 'minimize')
+      expect(window.minimize).toHaveBeenCalledOnce()
+      control(owned, 'maximize')
+      expect(window.maximize).toHaveBeenCalledOnce()
+      // A second maximize request restores the window instead of maximizing again.
+      window.maximized = true
+      control(owned, 'maximize')
+      expect(window.unmaximize).toHaveBeenCalledOnce()
+      expect(window.maximize).toHaveBeenCalledOnce()
+    })
+
+    it('refuses a window action from a renderer the shell does not own', async () => {
+      vi.spyOn(process, 'platform', 'get').mockReturnValue('linux')
+      await import('../src/main.ts')
+      await harness.preparing.promise
+      const window = harness.windows[0]!
+      const control = harness.handlers.get(DESKTOP_IPC.windowControl)!
+      const foreign = { sender: {}, senderFrame: { url: 'dsh-app://app/index.html' } }
+      control(foreign, 'minimize')
+      control(foreign, 'maximize')
+      control(foreign, 'close')
+      expect(window.minimize).not.toHaveBeenCalled()
+      expect(window.maximize).not.toHaveBeenCalled()
+      expect(harness.app.quit).not.toHaveBeenCalled()
+      // The owning window's own sub-frame is not the main frame that owns the
+      // document, so it may not drive the window chrome either.
+      const subframe = { sender: window.webContents, senderFrame: { url: 'dsh-app://app/frame.html' } }
+      control(subframe, 'minimize')
+      control(subframe, 'maximize')
+      control(subframe, 'close')
+      expect(window.minimize).not.toHaveBeenCalled()
+      expect(window.maximize).not.toHaveBeenCalled()
+      expect(harness.app.quit).not.toHaveBeenCalled()
+    })
+
+    it('quits the application on Linux, where a hidden window has no way back', async () => {
+      vi.spyOn(process, 'platform', 'get').mockReturnValue('linux')
+      await import('../src/main.ts')
+      await harness.preparing.promise
+      const window = harness.windows[0]!
+      const close = vi.spyOn(window, 'close')
+      harness.handlers.get(DESKTOP_IPC.windowControl)!({ sender: window.webContents, senderFrame: window.webContents.mainFrame }, 'close')
+      expect(harness.app.quit).toHaveBeenCalled()
+      expect(close).not.toHaveBeenCalled()
+    })
+
+    it.each(['win32', 'darwin'] as const)('closes the window instead of quitting on %s', async (platform) => {
+      vi.spyOn(process, 'platform', 'get').mockReturnValue(platform)
+      await import('../src/main.ts')
+      await harness.preparing.promise
+      const window = harness.windows[0]!
+      const close = vi.spyOn(window, 'close')
+      harness.handlers.get(DESKTOP_IPC.windowControl)!({ sender: window.webContents, senderFrame: window.webContents.mainFrame }, 'close')
+      expect(close).toHaveBeenCalledOnce()
+      expect(harness.app.quit).not.toHaveBeenCalled()
+    })
+
+    it('reports the maximized state to the renderer on Linux', async () => {
+      vi.spyOn(process, 'platform', 'get').mockReturnValue('linux')
+      await import('../src/main.ts')
+      await harness.preparing.promise
+      const window = harness.windows[0]!
+      const sent = () => window.webContents.send.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.windowState)
+      window.webContents.emit('did-finish-load')
+      expect(sent().at(-1)).toEqual([DESKTOP_IPC.windowState, { maximized: false }])
+      window.maximized = true
+      window.emit('maximize')
+      expect(sent().at(-1)).toEqual([DESKTOP_IPC.windowState, { maximized: true }])
+      window.maximized = false
+      window.emit('unmaximize')
+      expect(sent().at(-1)).toEqual([DESKTOP_IPC.windowState, { maximized: false }])
+    })
+
+    it.each(['win32', 'darwin'] as const)('reports no window state on %s', async (platform) => {
+      vi.spyOn(process, 'platform', 'get').mockReturnValue(platform)
+      await import('../src/main.ts')
+      await harness.preparing.promise
+      const window = harness.windows[0]!
+      window.webContents.emit('did-finish-load')
+      window.emit('maximize')
+      window.emit('unmaximize')
+      expect(window.webContents.send.mock.calls.filter(([channel]) => channel === DESKTOP_IPC.windowState)).toHaveLength(0)
+    })
   })
 
   it('covers the macOS vibrancy reattach gap with an opaque base while minimized or hidden', async () => {

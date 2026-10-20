@@ -22,3 +22,10 @@ it('starts the return bar below the Desktop caption strip on Windows', () => {
   // strip that the fixed caption menu host also occupies.
   expect(declarations(':global([data-windows-titlebar]) .overlay')).toContain('padding-top: var(--dsh-windows-titlebar-height)')
 })
+
+it('starts the surface below the renderer-painted caption strip on Linux', () => {
+  // The strip is a drag region composed from geometry regardless of stacking, so
+  // an overlapping return bar drags the window instead of receiving clicks; the
+  // chrome-top token is zero in fullscreen, where the strip goes away.
+  expect(declarations(':global(html[data-linux-titlebar]) .overlay')).toContain('top: var(--dsh-frame-chrome-top, 0px)')
+})

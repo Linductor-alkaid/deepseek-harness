@@ -42,6 +42,17 @@ export interface DesktopElectronBuilderConfig {
       readonly signingHashAlgorithms: readonly string[]
     }
   }
+  readonly linux: {
+    readonly category: string
+    readonly icon: string
+    readonly executableName: string
+    readonly syncDesktopName: boolean
+    readonly target: readonly ['deb', 'AppImage']
+  }
+  readonly deb: {
+    readonly maintainer: string
+    readonly depends: readonly string[]
+  }
   readonly nsis: {
     readonly include: string
     readonly oneClick: false
