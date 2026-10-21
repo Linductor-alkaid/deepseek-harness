@@ -51,6 +51,10 @@ describe('Linux desktop packaging', () => {
         // makes gtk-update-icon-cache call the hicolor cache invalid.
         executableName: 'deepseek-harness',
         icon: fileURLToPath(new URL('../resources/icons', import.meta.url)),
+        // Chromium capitalizes the executable name's first letter into the X11
+        // WM_CLASS; the entry must carry that exact class for the dock to
+        // associate the running window with this launcher.
+        desktop: { entry: { StartupWMClass: 'Deepseek-harness' } },
         syncDesktopName: true,
         target: ['deb', 'AppImage'],
       },
