@@ -25,6 +25,19 @@ function pwshAvailable(): boolean {
   return spawnSync(resolvePwshPath(), ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', '$true'], { encoding: 'utf8' }).status === 0
 }
 
+// The ambient-delete deny names Everyone, so a FullControl open of a granted
+// DIRECTORY is denied on every token — except when the token's SeBackup and
+// SeRestore privileges are enabled, which AccessCheck honors over explicit
+// ACEs. Hosted Windows runners run the built-in Administrator with both
+// privileges enabled, so the deny's documented directory cost is unobservable
+// there; the fixtures stay meaningful only where the privileges are absent.
+function tokenHoldsBackupPrivileges(): boolean {
+  if (!isWin32) return false
+  const privileges = spawnSync('whoami', ['/priv'], { encoding: 'utf8' }).stdout ?? ''
+  return /SeBackupPrivilege[^\r\n]*\bEnabled\b/u.test(privileges)
+    && /SeRestorePrivilege[^\r\n]*\bEnabled\b/u.test(privileges)
+}
+
 function runRunner(args: string[], timeoutMs = 30_000) {
   return spawnSync(process.execPath, ['--import', 'tsx/esm', runnerEntry, ...args], {
     timeout: timeoutMs,
@@ -527,7 +540,7 @@ describe.skipIf(!isWin32 || !pwshAvailable())('windows-acl runner', () => {
     }
   }, 30_000)
 
-  it('a FullControl open inside a granted root still works for files (the deny inherits to containers only)', () => {
+  it.skipIf(tokenHoldsBackupPrivileges())('a FullControl open inside a granted root still works for files (the deny inherits to containers only)', () => {
     // The ambient-delete deny is 0x40, a member of FILE_ALL_ACCESS: inheriting
     // it onto files would deny every GENERIC_ALL/FullControl open by the user,
     // Administrators, SYSTEM, or the DSH host. Directories inside a granted
