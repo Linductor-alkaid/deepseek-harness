@@ -4,6 +4,16 @@ import process from 'node:process'
 
 import config from './config.json' with { type: 'json' }
 
+/**
+ * Resolve the `owner/repository` this event runs against. GitHub Actions sets
+ * `GITHUB_REPOSITORY` to the actual repository, so forks and standalone copies
+ * validate themselves; the configured values stay the fallback outside Actions.
+ * @returns {string} `owner/repository` path for REST calls.
+ */
+export function targetRepository() {
+  return process.env.GITHUB_REPOSITORY ?? `${config.organization}/${config.repository}`
+}
+
 const API_VERSION = '2026-03-10'
 
 function token() {
@@ -69,7 +79,7 @@ export async function graphql(query, variables) {
  * @returns {Promise<object|null>} Issue snapshot, or null when the number identifies a pull request.
  */
 export async function issueSnapshot(number, status = undefined) {
-  const issue = await api(`/repos/${config.organization}/${config.repository}/issues/${number}`)
+  const issue = await api(`/repos/${targetRepository()}/issues/${number}`)
   if (issue.pull_request) return null
   const context = await projectContext(number)
   return {
