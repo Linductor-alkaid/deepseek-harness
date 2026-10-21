@@ -122,7 +122,9 @@ def pep440_version(version: str) -> str:
     stable, separator, prerelease = version.partition("-")
     if not separator:
         return stable
-    match = re.fullmatch(r"(a|b|c|rc|alpha|beta|pre|preview)\.?(\d+)", prerelease)
+    match = re.fullmatch(
+        r"(a|b|c|rc|alpha|beta|pre|preview)\.?(\d+)(?:-linuxbuild\.(\d+))?", prerelease
+    )
     if match is None:
         raise ValueError(
             f"prerelease segment {prerelease!r} has no PEP 440 spelling; use rc.N, alpha.N, or beta.N"
@@ -130,7 +132,12 @@ def pep440_version(version: str) -> str:
     identifier = {"alpha": "a", "beta": "b", "c": "rc", "pre": "rc", "preview": "rc"}.get(
         match.group(1), match.group(1)
     )
-    return f"{stable}{identifier}{match.group(2)}"
+    version = f"{stable}{identifier}{match.group(2)}"
+    # A linuxbuild counter rebuilds its base prerelease, so it sorts after it
+    # only as a post-release; a dev release would sort before the base.
+    if match.group(3) is not None:
+        version = f"{version}.post{match.group(3)}"
+    return version
 
 
 def validate_release_tag(tag: str | None, version: str) -> None:

@@ -65,6 +65,7 @@ def test_pep440_version_spells_a_prerelease_the_python_way() -> None:
     assert build_python_release.pep440_version("1.2.3-rc.1") == "1.2.3rc1"
     assert build_python_release.pep440_version("1.2.3-alpha.2") == "1.2.3a2"
     assert build_python_release.pep440_version("1.2.3-beta.10") == "1.2.3b10"
+    assert build_python_release.pep440_version("1.2.3-rc.2-linuxbuild.3") == "1.2.3rc2.post3"
 
     with pytest.raises(ValueError, match="no PEP 440 spelling"):
         build_python_release.pep440_version("1.2.3-nightly")
