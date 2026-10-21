@@ -436,8 +436,8 @@ describe('CI workflow', () => {
 
     // serial-windows: master-only standby, self-hosted, non-blocking, lives in ci-master.
     expect(serialWindows.if).toBe("github.event_name == 'push' && github.ref == 'refs/heads/master'")
-    expect(serialWindows['runs-on']).toEqual(['self-hosted', 'dsh-win-ci', 'windows'])
-    expect(serialWindows.name).toBe('serial / windows (self-hosted standby)')
+    expect(serialWindows['runs-on']).toBe('windows-2025')
+    expect(serialWindows.name).toBe('serial / windows')
     // Its store must share the ReFS workspace volume for clone; the install
     // must carry the same filesystem branch as the PR jobs.
     const serialSteps = serialWindows.steps as unknown[]

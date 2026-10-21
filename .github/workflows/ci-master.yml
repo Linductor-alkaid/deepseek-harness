@@ -140,7 +140,7 @@ jobs:
   # would poison the hosted cache namespace with self-hosted paths).
   serial-linux-selfhosted:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    name: serial / linux (self-hosted standby)
+    name: serial / linux
     runs-on: ubuntu-24.04
     steps:
       # DSH_ARCHIVE_BASE_REF below compares the frozen-archive gate against
@@ -234,7 +234,7 @@ jobs:
   # paths).
   serial-windows:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    name: serial / windows (self-hosted standby)
+    name: serial / windows
     runs-on: windows-2025
     timeout-minutes: 120
     steps:
