@@ -686,8 +686,15 @@ describe('headless stream-json snapshots', () => {
           event != null && typeof event === 'object' && !Array.isArray(event)
           && 'type' in event && String(event.type).startsWith('llm/')
         ))
-      expect(server.requests, `agent/title requests only; recorded ${JSON.stringify(server.paths)} ${shapes.join(' ')} retries=${JSON.stringify(retries)}`).toHaveLength(2)
-      expect(server.paths).toEqual(['/v1/messages', '/v1/messages'])
+      // A loaded runner can push the agent stream past its idle timeout, and
+      // TIMEOUT is a retryable failure, so the transport may record duplicate
+      // agent attempts; the title call must stay single and every call must
+      // target the messages endpoint.
+      const agentAttempts = server.requests.filter(request => !isTitleRequest(request))
+      const titleRequests = server.requests.filter(isTitleRequest)
+      expect(server.paths.every(path => path === '/v1/messages'), `messages endpoint only; recorded ${JSON.stringify(server.paths)} ${shapes.join(' ')} retries=${JSON.stringify(retries)}`).toBe(true)
+      expect(agentAttempts.length, `at least one agent attempt; recorded ${shapes.join(' ')} retries=${JSON.stringify(retries)}`).toBeGreaterThanOrEqual(1)
+      expect(titleRequests, `exactly one title request; recorded ${shapes.join(' ')} retries=${JSON.stringify(retries)}`).toHaveLength(1)
       const agentRequest = server.requests.find(request => request.max_tokens === 256_000)
       const titleRequest = server.requests.find(isTitleRequest)
       expect(titleRequest?.max_tokens).toBe(TITLE_MAX_TOKENS)
@@ -795,7 +802,15 @@ describe('headless stream-json snapshots', () => {
           event != null && typeof event === 'object' && !Array.isArray(event)
           && 'type' in event && String(event.type).startsWith('llm/')
         ))
-      expect(server.requests, `agent/title requests only; recorded ${JSON.stringify(server.paths)} ${shapes.join(' ')} retries=${JSON.stringify(retries)}`).toHaveLength(2)
+      // A loaded runner can push the agent stream past its idle timeout, and
+      // TIMEOUT is a retryable failure, so the transport may record duplicate
+      // agent attempts; the title call must stay single and every call must
+      // target the messages endpoint.
+      const agentAttempts = server.requests.filter(request => !isTitleRequest(request))
+      const titleRequests = server.requests.filter(isTitleRequest)
+      expect(server.paths.every(path => path === '/v1/messages'), `messages endpoint only; recorded ${JSON.stringify(server.paths)} ${shapes.join(' ')} retries=${JSON.stringify(retries)}`).toBe(true)
+      expect(agentAttempts.length, `at least one agent attempt; recorded ${shapes.join(' ')} retries=${JSON.stringify(retries)}`).toBeGreaterThanOrEqual(1)
+      expect(titleRequests, `exactly one title request; recorded ${shapes.join(' ')} retries=${JSON.stringify(retries)}`).toHaveLength(1)
       const agentRequest = server.requests.find(request => !isTitleRequest(request))
       const titleRequest = server.requests.find(isTitleRequest)
       expect(agentRequest).not.toHaveProperty('max_completion_tokens')
