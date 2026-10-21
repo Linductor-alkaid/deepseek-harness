@@ -116,6 +116,10 @@ jobs:
           test -f "/usr/share/applications/DeepSeek Harness.desktop"
           test -x "/opt/DeepSeek Harness/resources/runtime/cli/bin/dsh"
           grep -q '^Exec=' "/usr/share/applications/DeepSeek Harness.desktop"
+          # The dock associates the running window through WM_CLASS, which
+          # Chromium capitalizes from the executable name; an entry carrying a
+          # different class strands the window as an unrelated application.
+          grep -q '^StartupWMClass=Deepseek-harness$' "/usr/share/applications/DeepSeek Harness.desktop"
           # The desktop entry resolves Icon= only through the size directories
           # hicolor's index.theme declares; each shipped size must be present.
           for size in 16x16 24x24 32x32 48x48 64x64 128x128 256x256 512x512; do

@@ -257,6 +257,16 @@ export function createElectronBuilderConfig(
       // update-alternatives reject the link and makes gtk-update-icon-cache call
       // the hicolor cache invalid, which loses the launcher icon.
       executableName: 'deepseek-harness',
+      desktop: {
+        entry: {
+          // Chromium capitalizes the executable name's first letter into the X11
+          // WM_CLASS ("Deepseek-harness"), independent of package.json's
+          // desktopName, which only reaches the Wayland app_id; the entry must
+          // carry that exact class or the dock treats the running window as an
+          // unrelated application.
+          StartupWMClass: 'Deepseek-harness',
+        },
+      },
       // The window's WM_CLASS must match the desktop entry for the task bar to associate them.
       syncDesktopName: true,
       target: ['deb', 'AppImage'],

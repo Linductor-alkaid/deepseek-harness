@@ -17,7 +17,10 @@ afterEach(() => {
 })
 
 describe('model-driven dsh-tools generation', () => {
-  it('round-trips the complete service and event structure through the runtime registry', { timeout: 30_000 }, async () => {
+  // The workspace round-trip shares the coverage budget: it exceeds a fixed
+  // 30s under the partitioned Windows coverage load.
+  const roundTripBudget = Math.max(30_000, Number(process.env.DSH_COVERAGE_TEST_TIMEOUT_MS ?? 0))
+  it('round-trips the complete service and event structure through the runtime registry', { timeout: roundTripBudget }, async () => {
     const workspace = new WorkspaceAnalyzer({
       root: workspaceRoot,
       faces: ['host'],
