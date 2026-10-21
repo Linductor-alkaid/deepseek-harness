@@ -1,6 +1,6 @@
 /** Linux packaging surface: an unsigned Debian package and AppImage with no signature, feed or policy. */
 
-import { mkdtempSync, rmSync, statSync } from 'node:fs'
+import { mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -50,13 +50,30 @@ describe('Linux desktop packaging', () => {
         // A slash or a space makes update-alternatives reject the alternative and
         // makes gtk-update-icon-cache call the hicolor cache invalid.
         executableName: 'deepseek-harness',
-        icon: fileURLToPath(new URL('../resources/icon.png', import.meta.url)),
+        icon: fileURLToPath(new URL('../resources/icons', import.meta.url)),
         syncDesktopName: true,
         target: ['deb', 'AppImage'],
       },
       artifactName: 'deepseek-harness-${version}-${os}-${arch}-unsigned.${ext}',
       publish: null,
     })
+  })
+
+  it('ships the launcher icon set in the standard hicolor size directories', () => {
+    const iconDirectory = fileURLToPath(new URL('../resources/icons', import.meta.url))
+    // A desktop entry resolves Icon= only through the size directories hicolor's
+    // index.theme declares; a single PNG at the artwork's native size installs
+    // under a directory no GTK3 desktop reads.
+    expect(readdirSync(iconDirectory).sort()).toEqual([
+      '128x128.png',
+      '16x16.png',
+      '24x24.png',
+      '256x256.png',
+      '32x32.png',
+      '48x48.png',
+      '512x512.png',
+      '64x64.png',
+    ])
   })
 
   it('declares the Debian maintainer and the runtime libraries the package needs', () => {
