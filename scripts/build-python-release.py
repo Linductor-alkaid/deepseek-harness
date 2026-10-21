@@ -104,7 +104,7 @@ def repository_version(root: Path = ROOT) -> str:
     except (OSError, json.JSONDecodeError) as error:
         raise ValueError(f"could not read repository version from {package_json}") from error
     version = payload.get("version") if isinstance(payload, dict) else None
-    if not isinstance(version, str) or re.fullmatch(r"\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?", version) is None:
+    if not isinstance(version, str) or re.fullmatch(r"\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?", version) is None:
         raise ValueError(
             f"{package_json} version must be X.Y.Z with an optional prerelease segment, got {version!r}"
         )
