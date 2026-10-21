@@ -672,7 +672,15 @@ describe('headless stream-json snapshots', () => {
       })
 
       expect(result.stderr).toBe('')
-      expect(server.requests).toHaveLength(2)
+      // On mismatch the recorded shapes name the duplicated call: the agent
+      // request carries max_tokens 256_000 and the title request carries
+      // TITLE_MAX_TOKENS, so a third entry identifies which caller retried.
+      const shapes = server.requests.map(request => JSON.stringify({
+        max_tokens: request.max_tokens,
+        model: request.model,
+        stream: request.stream,
+      }))
+      expect(server.requests, `agent/title requests only; recorded ${JSON.stringify(server.paths)} ${shapes.join(' ')}`).toHaveLength(2)
       expect(server.paths).toEqual(['/v1/messages', '/v1/messages'])
       const agentRequest = server.requests.find(request => request.max_tokens === 256_000)
       const titleRequest = server.requests.find(isTitleRequest)
@@ -767,7 +775,15 @@ describe('headless stream-json snapshots', () => {
       })
 
       expect(result.stderr).toBe('')
-      expect(server.requests).toHaveLength(2)
+      // On mismatch the recorded shapes name the duplicated call: the agent
+      // request carries max_tokens 256_000 and the title request carries
+      // TITLE_MAX_TOKENS, so a third entry identifies which caller retried.
+      const shapes = server.requests.map(request => JSON.stringify({
+        max_tokens: request.max_tokens,
+        model: request.model,
+        stream: request.stream,
+      }))
+      expect(server.requests, `agent/title requests only; recorded ${JSON.stringify(server.paths)} ${shapes.join(' ')}`).toHaveLength(2)
       const agentRequest = server.requests.find(request => !isTitleRequest(request))
       const titleRequest = server.requests.find(isTitleRequest)
       expect(agentRequest).not.toHaveProperty('max_completion_tokens')
