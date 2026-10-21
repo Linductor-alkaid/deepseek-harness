@@ -117,6 +117,9 @@ describe('Linux desktop packaging', () => {
     const destination = join(root, 'cli')
     prepareDesktopCli(destination, 'linux')
     const command = join(destination, 'bin', 'dsh')
-    expect(statSync(command).mode & 0o777).toBe(0o755)
+    // libuv reports 0o666 for every Windows file, so the executable bit the
+    // launcher carries is only representable — and only assertable — on a
+    // POSIX host, where the chmod in prepareDesktopCli takes effect.
+    if (process.platform !== 'win32') expect(statSync(command).mode & 0o777).toBe(0o755)
   })
 })
