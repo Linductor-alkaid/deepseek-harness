@@ -681,8 +681,11 @@ describe('headless stream-json snapshots', () => {
         stream: request.stream,
       }))
       const retries = parseJsonl(result.stdout)
-        .map(record => record.event as JsonObject | null)
-        .filter(event => event !== null && String(event.type ?? '').startsWith('llm/'))
+        .map(record => (record as { event?: unknown }).event)
+        .filter((event): event is JsonObject => (
+          event != null && typeof event === 'object' && !Array.isArray(event)
+          && 'type' in event && String(event.type).startsWith('llm/')
+        ))
       expect(server.requests, `agent/title requests only; recorded ${JSON.stringify(server.paths)} ${shapes.join(' ')} retries=${JSON.stringify(retries)}`).toHaveLength(2)
       expect(server.paths).toEqual(['/v1/messages', '/v1/messages'])
       const agentRequest = server.requests.find(request => request.max_tokens === 256_000)
@@ -787,8 +790,11 @@ describe('headless stream-json snapshots', () => {
         stream: request.stream,
       }))
       const retries = parseJsonl(result.stdout)
-        .map(record => record.event as JsonObject | null)
-        .filter(event => event !== null && String(event.type ?? '').startsWith('llm/'))
+        .map(record => (record as { event?: unknown }).event)
+        .filter((event): event is JsonObject => (
+          event != null && typeof event === 'object' && !Array.isArray(event)
+          && 'type' in event && String(event.type).startsWith('llm/')
+        ))
       expect(server.requests, `agent/title requests only; recorded ${JSON.stringify(server.paths)} ${shapes.join(' ')} retries=${JSON.stringify(retries)}`).toHaveLength(2)
       const agentRequest = server.requests.find(request => !isTitleRequest(request))
       const titleRequest = server.requests.find(isTitleRequest)
