@@ -4,6 +4,12 @@ import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
+import process from 'node:process'
+
+// REST path assertions pin the configured fallback repository; Actions exports
+// GITHUB_REPOSITORY, which would otherwise retarget every mocked read at the
+// hosting repository.
+process.env.GITHUB_REPOSITORY = 'deepseek-harness/deepseek-harness'
 
 import { api, graphql, initializeIssueStartDate, issueSnapshot } from './github.mjs'
 import { auditIssue, initializePullRequestStartDates, repairIssueLabels, runLifecycle } from './lifecycle.mjs'
