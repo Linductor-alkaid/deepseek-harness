@@ -236,7 +236,10 @@ describe('the per-slot report budget', () => {
 })
 
 describe('the real workspace surface', () => {
-  it('collects every declared slot with a teachable contract', { timeout: 30_000 }, () => {
+  // The workspace walk shares the coverage budget: it exceeds a fixed 30s
+  // under the partitioned Windows coverage load.
+  const walkBudget = Math.max(30_000, Number(process.env.DSH_COVERAGE_TEST_TIMEOUT_MS ?? 0))
+  it('collects every declared slot with a teachable contract', { timeout: walkBudget }, () => {
     const entries = collectSlotEntries(process.cwd())
     expect(entries.length).toBeGreaterThan(30)
     for (const entry of entries) {
