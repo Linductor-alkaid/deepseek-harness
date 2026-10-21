@@ -104,7 +104,7 @@ def repository_version(root: Path = ROOT) -> str:
     except (OSError, json.JSONDecodeError) as error:
         raise ValueError(f"could not read repository version from {package_json}") from error
     version = payload.get("version") if isinstance(payload, dict) else None
-    if not isinstance(version, str) or re.fullmatch(r"\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?", version) is None:
+    if not isinstance(version, str) or re.fullmatch(r"\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?", version) is None:
         raise ValueError(
             f"{package_json} version must be X.Y.Z with an optional prerelease segment, got {version!r}"
         )
@@ -122,7 +122,9 @@ def pep440_version(version: str) -> str:
     stable, separator, prerelease = version.partition("-")
     if not separator:
         return stable
-    match = re.fullmatch(r"(a|b|c|rc|alpha|beta|pre|preview)\.?(\d+)", prerelease)
+    match = re.fullmatch(
+        r"(a|b|c|rc|alpha|beta|pre|preview)\.?(\d+)(?:-linuxbuild\.(\d+))?", prerelease
+    )
     if match is None:
         raise ValueError(
             f"prerelease segment {prerelease!r} has no PEP 440 spelling; use rc.N, alpha.N, or beta.N"
@@ -130,7 +132,12 @@ def pep440_version(version: str) -> str:
     identifier = {"alpha": "a", "beta": "b", "c": "rc", "pre": "rc", "preview": "rc"}.get(
         match.group(1), match.group(1)
     )
-    return f"{stable}{identifier}{match.group(2)}"
+    version = f"{stable}{identifier}{match.group(2)}"
+    # A linuxbuild counter rebuilds its base prerelease, so it sorts after it
+    # only as a post-release; a dev release would sort before the base.
+    if match.group(3) is not None:
+        version = f"{version}.post{match.group(3)}"
+    return version
 
 
 def validate_release_tag(tag: str | None, version: str) -> None:

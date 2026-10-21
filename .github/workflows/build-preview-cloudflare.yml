@@ -35,6 +35,21 @@ jobs:
     runs-on: ubuntu-24.04
     name: cloudflare pages preview
     steps:
+      # The `secrets` context is unavailable in step-level `if`, so one cheap
+      # step reports whether this deployment configured the Cloudflare project;
+      # the deployment steps below gate on its output.
+      - name: Detect Cloudflare deployment credentials
+        id: cf-gate
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -n "${CLOUDFLARE_API_TOKEN:-}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "CLOUDFLARE_API_TOKEN is not configured on this repository; the preview deployment steps are skipped."
+          fi
+
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
@@ -88,6 +103,7 @@ jobs:
           cp apps/web/dist/preview.html apps/web/dist/index.html
 
       - name: Upload to Cloudflare Pages
+        if: ${{ steps.cf-gate.outputs.enabled == 'true' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -112,6 +128,7 @@ jobs:
       # Accept-Encoding is sent because a browser sends it; the assertion is
       # about what the platform does with a body that is already compressed.
       - name: Verify the protected deployment serves the image
+        if: ${{ steps.cf-gate.outputs.enabled == 'true' }}
         env:
           CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
@@ -151,6 +168,7 @@ jobs:
       # idempotent: a pull request opened before this workflow existed never
       # sees an `opened` event, and every later push must not restate the URL.
       - name: Comment the preview URL
+        if: ${{ steps.cf-gate.outputs.enabled == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR: ${{ github.event.pull_request.number }}

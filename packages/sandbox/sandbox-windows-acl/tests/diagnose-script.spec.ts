@@ -37,13 +37,36 @@ function pwshAvailable(): boolean {
   }
 }
 
+// Process creation and Add-Type compilation share the Windows coverage budget.
+const timeout = Math.max(90_000, Number(process.env.DSH_COVERAGE_TEST_TIMEOUT_MS ?? 0))
+
+// The withhold fixtures (`icacls /inheritance:r /grant:r <sid>:(M)`) only
+// build a directory that lacks effective WRITE_DAC and WRITE_OWNER when the
+// token cannot override its own explicit ACEs. Hosted Windows runners run the
+// built-in Administrator: stripping inheritance re-grants SYSTEM and
+// Administrators FullControl, the withheld rights stay effectively present,
+// and every fixture that expects them absent misclassifies. Probe once
+// whether a stripped grant actually withholds the rights.
+function canWithholdEffectiveRights(): boolean {
+  const probe = mkdtempSync(join(tmpdir(), 'dsh-acl-withhold-'))
+  try {
+    const target = join(realpathSync.native(probe), 'probe')
+    mkdirSync(target)
+    const me = pwsh('[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value').trim()
+    icacls(target, '/inheritance:r', '/grant:r', `*${me}:(M)`)
+    return !normalized(target, aclLines(target)).some(line => /\(F\)|S-1-5-18\b|S-1-5-32-544\b/u.test(line))
+  } finally {
+    rmSync(probe, { recursive: true, force: true })
+  }
+}
+
+const withheldRightsRepresentable = isWin32 && pwshAvailable() && canWithholdEffectiveRights()
+
 const script = fileURLToPath(new URL('../assets/diagnose-windows-sandbox-acl/scripts/diagnose-windows-sandbox-acl.ps1', import.meta.url))
 const PACKAGE_SID = 'S-1-15-2-1-2-3-4'
 const OTHER_PACKAGE_SID = 'S-1-15-2-4-3-2-1'
 const CAPABILITY_SID = 'S-1-15-3-1-2-3-4'
 const REMOVED_SWITCHES = ['-Fix', '-GrantFullControl', '-Compact']
-// Process creation and Add-Type compilation share the Windows coverage budget.
-const timeout = Math.max(90_000, Number(process.env.DSH_COVERAGE_TEST_TIMEOUT_MS ?? 0))
 
 // Vitest's asymmetric factories return any; expected matchers are opaque values.
 const containingObject = (value: Record<string, unknown>): unknown => expect.objectContaining(value)
@@ -241,7 +264,7 @@ describe.skipIf(!isWin32 || !pwshAvailable())('diagnose-windows-sandbox-acl scri
     }
   }, timeout)
 
-  it('grants full control to a directory that lacks WRITE_DAC and WRITE_OWNER, preserving owner and label', () => {
+  it.skipIf(!withheldRightsRepresentable)('grants full control to a directory that lacks WRITE_DAC and WRITE_OWNER, preserving owner and label', () => {
     const scratch = newScratch()
     try {
       const target = makeDir(scratch, 'missing-write-owner')
@@ -268,7 +291,7 @@ describe.skipIf(!isWin32 || !pwshAvailable())('diagnose-windows-sandbox-acl scri
     }
   }, timeout)
 
-  it('repairs a missing grant and a package ACE in the same invocation', () => {
+  it.skipIf(!withheldRightsRepresentable)('repairs a missing grant and a package ACE in the same invocation', () => {
     const scratch = newScratch()
     try {
       const target = makeDir(scratch, 'both')
@@ -335,7 +358,7 @@ describe.skipIf(!isWin32 || !pwshAvailable())('diagnose-windows-sandbox-acl scri
     }
   }, timeout)
 
-  it('repairs the whole subtree in one run when only the workspace root is named', () => {
+  it.skipIf(!withheldRightsRepresentable)('repairs the whole subtree in one run when only the workspace root is named', () => {
     const scratch = newScratch()
     try {
       // The sandbox reports its provisioning failure on the workspace root while the
@@ -374,7 +397,7 @@ describe.skipIf(!isWin32 || !pwshAvailable())('diagnose-windows-sandbox-acl scri
     }
   }, timeout)
 
-  it('keeps an inherit-only ACE when it grants the missing right', () => {
+  it.skipIf(!withheldRightsRepresentable)('keeps an inherit-only ACE when it grants the missing right', () => {
     const scratch = newScratch()
     try {
       const target = makeDir(scratch, 'inherit-only')
@@ -561,7 +584,7 @@ describe.skipIf(!isWin32 || !pwshAvailable())('diagnose-windows-sandbox-acl scri
     }
   }, timeout)
 
-  it('restores every attempted change in reverse order when a later path fails', () => {
+  it.skipIf(!withheldRightsRepresentable)('restores every attempted change in reverse order when a later path fails', () => {
     const scratch = newScratch()
     try {
       const out = join(scratch, 'out')
@@ -583,7 +606,7 @@ describe.skipIf(!isWin32 || !pwshAvailable())('diagnose-windows-sandbox-acl scri
     }
   }, timeout)
 
-  it('prints the pending recovery command and reports restore_pending_then_stop when rollback fails', () => {
+  it.skipIf(!withheldRightsRepresentable)('prints the pending recovery command and reports restore_pending_then_stop when rollback fails', () => {
     const scratch = newScratch()
     try {
       const out = join(scratch, 'out')
@@ -801,7 +824,7 @@ function icacls { throw [System.IO.IOException]::new('icacls unavailable') }
     }
   }, timeout)
 
-  it('repairs its own workspace root when -AllowRoot is the object itself', () => {
+  it.skipIf(!withheldRightsRepresentable)('repairs its own workspace root when -AllowRoot is the object itself', () => {
     const scratch = newScratch()
     try {
       const out = join(scratch, 'out')
@@ -823,7 +846,7 @@ function icacls { throw [System.IO.IOException]::new('icacls unavailable') }
     }
   }, timeout)
 
-  it('is idempotent: a second repair run changes nothing', () => {
+  it.skipIf(!withheldRightsRepresentable)('is idempotent: a second repair run changes nothing', () => {
     const scratch = newScratch()
     try {
       const target = makeDir(scratch, 'idempotent')

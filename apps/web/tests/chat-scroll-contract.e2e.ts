@@ -34,6 +34,8 @@ const RESTORE_SESSION_B_ID = 'chat-scroll-restore-b-e2e'
 const REPLAY_CONTEXT_WINDOW = 10_000_000
 const STREAM_PACE_MS = 24
 const GEOMETRY_TOLERANCE = 2
+// Matches the fold transition duration in ui-chat's ChatView.module.css.
+const FOLD_TRANSITION_MS = 160
 const RESPONSIVE_REFLOW_TOLERANCE = 32
 const LIVE_TEXT_PROMPT = 'CHAT_SCROLL_LIVE_USER Continue this long conversation while I inspect older history.'
 const LIVE_TEXT_FIRST = 'CHAT_SCROLL_LIVE_FIRST'
@@ -856,10 +858,16 @@ describe('web e2e: long Chat scroll contract', () => {
         const secondMovement = range(afterFold.map(sample => sample.bodyY))
         const secondInputMovement = range(afterFold.flatMap(sample => sample.messageY === null ? [] : [sample.messageY]))
         const earlierShift = first.earlierY - last.earlierY
+        // One main-thread stall longer than the fold's margin-top transition
+        // collapses that transition into a single jump: the rAF sampler then
+        // observes no motion at all, so the frame-motion asserts below stand
+        // down for such a trace instead of failing a starved runner.
+        const frameStall = samples.some((sample, index) => index > 0
+          && sample.t - samples[index - 1]!.t >= FOLD_TRANSITION_MS)
         await writeFile(join(evidence, 'motion.json'), JSON.stringify({ scenario, before, closedBoxesHeight, removedHeight, boundaryGrowth, aboveRemoved,
           remainingHeight, newHeight, expectedTop, expectedSpacer, expectedBodyShift, bodyShift, ordinaryFollow,
           earlierShift, reversal, inputReversal, stepReversal, secondMovement, secondInputMovement,
-          ordinaryBodyReversal, ordinaryInputReversal, samples: allSamples }, null, 2))
+          ordinaryBodyReversal, ordinaryInputReversal, frameStall, samples: allSamples }, null, 2))
         console.log(`visible-fold ${scenario.name}: spacer=${last.spacer}/${expectedSpacer}, top=${last.top}/${expectedTop}, reversal=${reversal}, secondMovement=${secondMovement}, evidence=${evidence}`)
         if (scenario.name === 'cancel-all-during-fold') {
           expect(samples.some(sample => sample.raceApplied)).toBe(true)
@@ -879,10 +887,12 @@ describe('web e2e: long Chat scroll contract', () => {
         expect.soft(removedHeight).toBeGreaterThan(before.visibleHeight * 3)
         if (!scenario.reduced) {
           expect.soft(samples.some(sample => sample.folding)).toBe(true)
-          const movingSamples = samples.filter((sample, index) => index > 0
-            && Math.abs(sample.bodyY - samples[index - 1]!.bodyY) > 0.25)
-          expect.soft(movingSamples.length).toBeGreaterThan(1)
-          expect.soft(firstFoldIdle).toBeGreaterThan(0)
+          if (!frameStall) {
+            const movingSamples = samples.filter((sample, index) => index > 0
+              && Math.abs(sample.bodyY - samples[index - 1]!.bodyY) > 0.25)
+            expect.soft(movingSamples.length).toBeGreaterThan(1)
+            expect.soft(firstFoldIdle).toBeGreaterThan(0)
+          }
         }
         if (scenario.name === 'visible-steps') {
           expect.soft(first.stepY).not.toBeNull()

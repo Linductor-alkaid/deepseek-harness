@@ -247,7 +247,11 @@ export function createElectronBuilderConfig(
     },
     linux: {
       category: 'Development',
-      icon: fileURLToPath(new URL('../resources/icon.png', import.meta.url)),
+      // A directory of <size>x<size>.png files installs one icon per standard
+      // hicolor size directory. A single PNG installs under its raw pixel size,
+      // which no desktop reads: a desktop entry resolves Icon= only through the
+      // size directories hicolor's index.theme declares.
+      icon: fileURLToPath(new URL('../resources/icons', import.meta.url)),
       // The name becomes the update-alternatives alternative, the desktop entry's
       // Icon value and the installed icon file's name; a slash or a space makes
       // update-alternatives reject the link and makes gtk-update-icon-cache call

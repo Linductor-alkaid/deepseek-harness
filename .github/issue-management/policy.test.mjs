@@ -4,6 +4,12 @@ import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
+import process from 'node:process'
+
+// REST path assertions pin the configured fallback repository; Actions exports
+// GITHUB_REPOSITORY, which would otherwise retarget every mocked read at the
+// hosting repository.
+process.env.GITHUB_REPOSITORY = 'deepseek-harness/deepseek-harness'
 
 import { api, graphql, initializeIssueStartDate, issueSnapshot } from './github.mjs'
 import { auditIssue, initializePullRequestStartDates, repairIssueLabels, runLifecycle } from './lifecycle.mjs'
@@ -907,7 +913,8 @@ test('keeps trusted preflight before token minting and required policy unconditi
   assert.ok(steps[1].includes('node .github/issue-management/policy.mjs pr-preflight'))
   assert.ok(steps[1].includes('if [ -f .github/issue-management/selective-preflight.json ]; then'))
   assert.doesNotMatch(steps[1], /secrets\.|PROJECT_TOKEN|if:/)
-  assert.ok(steps[2].includes("if: ${{ steps.preflight.outputs.needs-project == 'true' }}"))
+  assert.ok(steps[2].includes("steps.preflight.outputs.needs-project == 'true'"))
+  assert.ok(steps[2].includes("vars.DSH_ISSUE_APP_CLIENT_ID != ''"))
   assert.ok(steps[2].includes('permission-organization-projects: read'))
   assert.ok(steps[3].includes('PROJECT_TOKEN: ${{ steps.app-token.outputs.token }}'))
   assert.ok(steps[3].includes('run: node .github/issue-management/policy.mjs pr'))

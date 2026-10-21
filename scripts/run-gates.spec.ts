@@ -181,7 +181,7 @@ describe('CI worker allocation', () => {
       DSH_PUBLINT_CONCURRENCY: '8',
       DSH_SNAPSHOT_MAX_WORKERS: '1',
       DSH_SNAPSHOT_MAX_CONCURRENCY: '8',
-      DSH_WEB_SNAPSHOT_WORKERS: '16',
+      DSH_WEB_SNAPSHOT_WORKERS: '8',
     })
   })
 
@@ -190,7 +190,7 @@ describe('CI worker allocation', () => {
       DSH_OXLINT_THREADS: '6',
       DSH_COVERAGE_MAX_WORKERS: '48',
       DSH_COVERAGE_PARTITIONS: '32',
-      DSH_WEB_SNAPSHOT_WORKERS: '12',
+      DSH_WEB_SNAPSHOT_WORKERS: '6',
     })
     expect(defaultConcurrency('ci-static', 60, 256, {})).toEqual({
       workers: 12,

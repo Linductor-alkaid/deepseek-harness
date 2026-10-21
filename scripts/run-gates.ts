@@ -234,7 +234,10 @@ export function ciWorkerEnvironment(
   setDefault('DSH_PUBLINT_CONCURRENCY', shared)
   setDefault('DSH_SNAPSHOT_MAX_WORKERS', 1)
   setDefault('DSH_SNAPSHOT_MAX_CONCURRENCY', shared)
-  setDefault('DSH_WEB_SNAPSHOT_WORKERS', env.DSH_GATE_CONCURRENCY === '1' ? 1 : budget)
+  // One web-snapshot worker drives a Node host plus a Chromium process fleet,
+  // so a worker per CPU oversubscribes the runner until the renderer misses
+  // the fold-transition frames and the gateway heartbeat window.
+  setDefault('DSH_WEB_SNAPSHOT_WORKERS', env.DSH_GATE_CONCURRENCY === '1' ? 1 : shared)
   setDefault('DSH_COVERAGE_MAX_WORKERS', testBudget)
   const coverageBudget = env.DSH_COVERAGE_MAX_WORKERS || String(testBudget)
   const total = Number(coverageBudget)
