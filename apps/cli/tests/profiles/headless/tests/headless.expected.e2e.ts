@@ -788,9 +788,7 @@ describe('headless stream-json snapshots', () => {
       })
 
       expect(result.stderr).toBe('')
-      // On mismatch the recorded shapes name the duplicated call: the agent
-      // request carries max_tokens 256_000 and the title request carries
-      // TITLE_MAX_TOKENS, so a third entry identifies which caller retried.
+      // On mismatch the recorded shapes name the duplicated call.
       const shapes = server.requests.map(request => JSON.stringify({
         max_tokens: request.max_tokens,
         model: request.model,
@@ -802,15 +800,7 @@ describe('headless stream-json snapshots', () => {
           event != null && typeof event === 'object' && !Array.isArray(event)
           && 'type' in event && String(event.type).startsWith('llm/')
         ))
-      // A loaded runner can push the agent stream past its idle timeout, and
-      // TIMEOUT is a retryable failure, so the transport may record duplicate
-      // agent attempts; the title call must stay single and every call must
-      // target the messages endpoint.
-      const agentAttempts = server.requests.filter(request => !isTitleRequest(request))
-      const titleRequests = server.requests.filter(isTitleRequest)
-      expect(server.paths.every(path => path === '/v1/messages'), `messages endpoint only; recorded ${JSON.stringify(server.paths)} ${shapes.join(' ')} retries=${JSON.stringify(retries)}`).toBe(true)
-      expect(agentAttempts.length, `at least one agent attempt; recorded ${shapes.join(' ')} retries=${JSON.stringify(retries)}`).toBeGreaterThanOrEqual(1)
-      expect(titleRequests, `exactly one title request; recorded ${shapes.join(' ')} retries=${JSON.stringify(retries)}`).toHaveLength(1)
+      expect(server.requests, `agent/title requests only; recorded ${JSON.stringify(server.paths)} ${shapes.join(' ')} retries=${JSON.stringify(retries)}`).toHaveLength(2)
       const agentRequest = server.requests.find(request => !isTitleRequest(request))
       const titleRequest = server.requests.find(isTitleRequest)
       expect(agentRequest).not.toHaveProperty('max_completion_tokens')
