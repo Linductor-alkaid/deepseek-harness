@@ -390,6 +390,10 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${DEEPSEEK_API_KEY:-}" ]; then
+            if [ "${{ github.repository }}" != "deepseek-ai/deepseek-harness" ]; then
+              echo "DEEPSEEK_API_KEY_EXTERNAL is not configured on this repository; the installed-wheel real API test is skipped."
+              exit 0
+            fi
             echo "::error::DEEPSEEK_API_KEY_EXTERNAL is empty; the installed-wheel real API test cannot self-skip."
             exit 1
           fi
@@ -406,6 +410,10 @@ jobs:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY_EXTERNAL }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:DEEPSEEK_API_KEY)) {
+            if ($env:GITHUB_REPOSITORY -ne 'deepseek-ai/deepseek-harness') {
+              Write-Host 'DEEPSEEK_API_KEY_EXTERNAL is not configured on this repository; the installed-wheel real API test is skipped.'
+              exit 0
+            }
             throw 'DEEPSEEK_API_KEY_EXTERNAL is empty; the installed-wheel real API test cannot self-skip.'
           }
 
@@ -421,6 +429,12 @@ jobs:
           DEEPSEEK_BASE_URL: https://api.deepseek.com/anthropic
         run: |
           set -euo pipefail
+          # Reaching this step without a key means the preflight skipped a
+          # non-upstream repository; upstream fails its preflight instead.
+          if [ -z "${DEEPSEEK_API_KEY:-}" ]; then
+            echo "DEEPSEEK_API_KEY_EXTERNAL is not configured on this repository; the installed-wheel real API test is skipped."
+            exit 0
+          fi
           blackbox_root="$(python -c 'import tempfile; print(tempfile.mkdtemp(prefix="dsh-sdk-blackbox-live-"))')"
           cd "$blackbox_root"
           env -u PYTHONPATH -u DSH_RUNTIME_MODE \
@@ -446,6 +460,10 @@ jobs:
           Remove-Item Env:DSH_RUNTIME_MODE -ErrorAction SilentlyContinue
           Push-Location $blackboxRoot
           try {
+            if ([string]::IsNullOrWhiteSpace($env:DEEPSEEK_API_KEY)) {
+              Write-Host 'DEEPSEEK_API_KEY_EXTERNAL is not configured on this repository; the installed-wheel real API test is skipped.'
+              return
+            }
             & "${{ steps.smoke-venv-windows.outputs.python }}" "$env:GITHUB_WORKSPACE\scripts\smoke-python-runtime.py" --scenario sdk-live --installed-wheel
             if ($LASTEXITCODE -ne 0) { throw "Installed-wheel live API smoke failed with exit code $LASTEXITCODE" }
           } finally {
