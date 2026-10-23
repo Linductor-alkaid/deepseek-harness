@@ -20,8 +20,18 @@ env:
 
 jobs:
   package:
-    name: Build the Debian package
-    runs-on: ubuntu-24.04
+    name: Build the Debian package (${{ matrix.arch }})
+    # Each architecture builds natively: the bundled runtime, the musl native
+    # binaries and the Electron payload all resolve from the host architecture.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7.0.1
@@ -52,31 +62,34 @@ jobs:
         run: pnpm --dir native/system run build:native
 
       - name: Package the Debian package and the AppImage
-        run: pnpm run package:desktop:linux:x64
+        run: pnpm run package:desktop:linux:${{ matrix.arch }}
 
       - name: Collect the artifacts
         run: |
           mkdir -p dist
-          cp apps/desktop/.desktop-build/targets/linux-x64/unsigned-artifacts/*.deb dist/
-          cp apps/desktop/.desktop-build/targets/linux-x64/unsigned-artifacts/*.AppImage dist/
+          cp apps/desktop/.desktop-build/targets/linux-${{ matrix.arch }}/unsigned-artifacts/*.deb dist/
+          cp apps/desktop/.desktop-build/targets/linux-${{ matrix.arch }}/unsigned-artifacts/*.AppImage dist/
           ls -la dist/
 
       - uses: actions/upload-artifact@v4
         with:
-          name: linux-desktop-package
+          name: linux-desktop-package-${{ matrix.arch }}
           path: dist/
           if-no-files-found: error
           retention-days: 14
 
   verify:
-    name: Verify on Ubuntu ${{ matrix.release }}
+    name: Verify on Ubuntu ${{ matrix.release }} (${{ matrix.arch }})
     needs: package
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # The official ubuntu container images are multi-arch, so each leg runs the
+    # package against its matching runner architecture.
     strategy:
       fail-fast: false
       matrix:
         release: ['20.04', '22.04', '24.04']
+        arch: [x64, arm64]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    timeout-minutes: 45
     container:
       image: ubuntu:${{ matrix.release }}
     env:
@@ -86,7 +99,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: linux-desktop-package
+          name: linux-desktop-package-${{ matrix.arch }}
           path: dist
 
       # A release leaves the main archive for the archive of retired releases
@@ -158,8 +171,9 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: linux-desktop-package
+          pattern: linux-desktop-package-*
           path: dist
+          merge-multiple: true
 
       - name: Attach the packages to the release
         env:
@@ -172,6 +186,6 @@ jobs:
         run: |
           if ! gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
             gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" \
-              --notes 'Debian package and AppImage for the DeepSeek Harness desktop application, built by the Linux packaging target. The package is unsigned and carries no update feed.'
+              --notes 'Debian package and AppImage for the DeepSeek Harness desktop application, built by the Linux packaging target for x64 and arm64. The packages are unsigned and carry no update feed.'
           fi
           gh release upload --clobber "$RELEASE_TAG" dist/*.deb dist/*.AppImage

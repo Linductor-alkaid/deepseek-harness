@@ -18,7 +18,7 @@ if (target === 'win-x64') {
   application = join(artifacts, 'win-unpacked')
   resources = join(application, 'resources')
   executable = join(application, 'DeepSeek Harness.exe')
-} else if (target === 'linux-x64') {
+} else if (target === 'linux-x64' || target === 'linux-arm64') {
   application = join(artifacts, 'linux-unpacked')
   resources = join(application, 'resources')
   executable = join(application, 'deepseek-harness')

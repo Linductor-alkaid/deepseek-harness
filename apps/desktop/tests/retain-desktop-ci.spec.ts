@@ -50,12 +50,15 @@ it.each([
   } else expect(summary).toContain('Publish separately with package_run_id=123 and package_run_attempt=2')
 })
 
-it('refuses to retain a Linux package because it is never published', async () => {
+it.each([
+  ['linux-x64', 'x64'], ['linux-arm64', 'arm64'],
+] as const)('refuses to retain %s because it is never published', async (target, arch) => {
   const root = await mkdtemp(join(tmpdir(), 'retain-ci-'))
   roots.push(root)
   const env = {
-    DSH_DESKTOP_TARGET_PLATFORM: 'linux', DSH_DESKTOP_TARGET_ARCH: 'x64',
+    DSH_DESKTOP_TARGET_PLATFORM: 'linux', DSH_DESKTOP_TARGET_ARCH: arch,
     DSH_PACKAGING_CONFIG_DIR: join(root, 'packaging'),
   }
-  await expect(retainDesktopCi(env, join(root, 'checkout'))).rejects.toThrow(/not a publishable release target/u)
+  await expect(retainDesktopCi(env, join(root, 'checkout')))
+    .rejects.toThrow(new RegExp(`^desktop retention: ${target} is not a publishable release target$`, 'u'))
 })
