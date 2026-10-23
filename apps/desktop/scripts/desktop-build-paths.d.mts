@@ -1,5 +1,5 @@
 /** Directory name of one supported Desktop build target. */
-export type DesktopBuildTarget = 'mac-arm64' | 'mac-x64' | 'win-x64' | 'linux-x64'
+export type DesktopBuildTarget = 'mac-arm64' | 'mac-x64' | 'win-x64' | 'linux-x64' | 'linux-arm64'
 
 /** Mutable target directories plus the shared immutable download cache. */
 export interface DesktopTargetBuildPaths {
@@ -40,7 +40,7 @@ export function desktopTargetBuildPaths(target: DesktopBuildTarget): DesktopTarg
 
 /**
  * Return the platform and architecture of the payload one release target prepares.
- * Windows and Linux are prepared as x64 only, so this differs from the build host on an arm64 machine.
+ * Linux payloads are prepared on a native host of the same architecture, so this differs from the build host on an arm64 machine building mac-x64.
  * @param target - Supported Desktop target name.
  * @returns Platform and architecture of the prepared payload.
  */

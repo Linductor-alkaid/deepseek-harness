@@ -48,7 +48,7 @@ const DESKTOP_UPLOAD_CREDENTIAL_ENV_NAMES = new Set([
 const AUTOMATIC_BUILD_VERSION = 'auto'
 
 /** Fixed platform and architecture identifiers exposed by package scripts. */
-export type DesktopPackageTargetName = 'mac-arm64' | 'mac-x64' | 'win-x64' | 'linux-x64'
+export type DesktopPackageTargetName = 'mac-arm64' | 'mac-x64' | 'win-x64' | 'linux-x64' | 'linux-arm64'
 
 /** One supported release target and its electron-builder selectors. */
 export interface DesktopPackageTarget {
@@ -92,6 +92,14 @@ const TARGETS: Record<DesktopPackageTargetName, DesktopPackageTarget> = {
     arch: 'x64',
     builderPlatform: '--linux',
     builderArch: '--x64',
+    publishTarget: undefined,
+  },
+  'linux-arm64': {
+    name: 'linux-arm64',
+    platform: 'linux',
+    arch: 'arm64',
+    builderPlatform: '--linux',
+    builderArch: '--arm64',
     publishTarget: undefined,
   },
 }
@@ -205,8 +213,8 @@ export function resolveDesktopPackageTarget(
   if (target.platform === 'win32' && (hostPlatform !== 'win32' || hostArch !== 'x64')) {
     throw new Error('desktop package: win-x64 requires a Windows x64 build host')
   }
-  if (target.platform === 'linux' && (hostPlatform !== 'linux' || hostArch !== 'x64')) {
-    throw new Error('desktop package: linux-x64 requires a Linux x64 build host')
+  if (target.platform === 'linux' && (hostPlatform !== 'linux' || hostArch !== target.arch)) {
+    throw new Error(`desktop package: ${name} requires a Linux ${target.arch} build host`)
   }
   if (target.platform === 'darwin' && hostPlatform !== 'darwin') {
     throw new Error(`desktop package: ${name} requires a macOS build host`)
@@ -266,7 +274,7 @@ export function parseDesktopPackageInvocation(
   if (positionals.length > 1) throw new Error('desktop package: expected at most one target')
   const name = positionals[0] ?? hostTargetName(hostPlatform, hostArch)
   if (values.unsigned && values['prepare-only']) throw new Error('desktop package: --unsigned cannot use --prepare-only')
-  if (values['skip-notarization'] && (name === 'win-x64' || name === 'linux-x64' || values.unsigned || values['prepare-only'])) {
+  if (values['skip-notarization'] && (!name.startsWith('mac-') || values.unsigned || values['prepare-only'])) {
     throw new Error('desktop package: --skip-notarization requires a signed macOS build, without --prepare-only')
   }
   const requestedBuildVersion = values['build-version']?.trim()

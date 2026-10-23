@@ -363,7 +363,7 @@ node apps/desktop/node_modules/pnpm/bin/pnpm.mjs --dir apps/desktop run test:upd
 - 账号登录尚未接入；登录按钮禁用。Windows 材质效果仍需平台验证。
 
 - 发布签名、公证、更新托管和跨上一版本的已安装产物验证需要生产发布环境。
-- Linux 的 Desktop 产物是本地未签名构建——Debian 包与 AppImage：没有发布签名、没有更新源、没有强制更新策略，应用也不会把 `dsh` 命令安装到 `PATH`。Debian 包在依赖里把 64 位 time_t 迁移后的包名排在前面、原包名作为备选，并依赖受限 shell 运行器 `bubblewrap`，因此可以在 Ubuntu 24.04、22.04 与 20.04 上安装。
+- Linux 的 Desktop 产物是本地未签名构建——面向 x64 与 arm64 的 Debian 包与 AppImage：没有发布签名、没有更新源、没有强制更新策略，应用也不会把 `dsh` 命令安装到 `PATH`。Debian 包在依赖里把 64 位 time_t 迁移后的包名排在前面、原包名作为备选，并依赖受限 shell 运行器 `bubblewrap`，因此可以在 Ubuntu 24.04、22.04 与 20.04 上安装。
 - 依赖的生命周期脚本遵循 pnpm 的构建权限；Desktop 不提供单独的审批对话框。
 - 桌面壳与 CLI dsh 共享 `$DSH_HOME` 下的会话、设置、凭据、工作区和存储，但可执行包、插件激活和锁文件彼此隔离。
 - 在 Electron win32-arm64 宿主上，未打包启动现在可以成功，但载荷仍为 x64：`packages/skill/tool-workspace-dependencies/src/index.ts` 的架构校验会把载荷记录的架构与宿主 `process.arch` 比较，因此 `load_workspace_dependencies` 工具仍可能拒绝 primary runtime。

@@ -90,17 +90,21 @@ describe('desktop build version discovery', () => {
       .resolves.toBe(`${PRERELEASE}.${DATE}.3`)
   })
 
-  it('counts Linux AppImage artifacts written beside the other targets', async () => {
-    // electron-builder names an x64 AppImage "x86_64"; the produced Linux artifact carries that name.
+  it.each([
+    ['linux-x64', 'x86_64'], ['linux-arm64', 'arm64'],
+  ] as const)('counts %s AppImage artifacts written beside the other targets', async (target, arch) => {
+    // electron-builder names the x64 AppImage "x86_64"; the produced Linux artifacts carry that name.
     const artifactsRoot = await artifactsWith([
-      `deepseek-harness-${PRERELEASE}.${DATE}.1-linux-x86_64-unsigned.AppImage`,
-      `deepseek-harness-${PRERELEASE}.${DATE}.4-linux-x86_64-unsigned.AppImage`,
+      `deepseek-harness-${PRERELEASE}.${DATE}.1-linux-${arch}-unsigned.AppImage`,
+      `deepseek-harness-${PRERELEASE}.${DATE}.4-linux-${arch}-unsigned.AppImage`,
     ])
-    await expect(suggestDesktopBuildVersion({ productVersion: PRERELEASE, target: 'linux-x64', environment: {}, date: DATE, artifactsRoot }))
+    await expect(suggestDesktopBuildVersion({ productVersion: PRERELEASE, target, environment: {}, date: DATE, artifactsRoot }))
       .resolves.toBe(`${PRERELEASE}.${DATE}.5`)
   })
 
-  it('numbers a Linux build from local artifacts because no remote feed holds its versions', async () => {
+  it.each([
+    'linux-x64', 'linux-arm64',
+  ] as const)('numbers a %s build from local artifacts because no remote feed holds its versions', async (target) => {
     const artifactsRoot = await artifactsWith([`deepseek-harness-${PRERELEASE}.${DATE}.2-linux-x86_64-unsigned.AppImage`])
     const messages: string[] = []
     const write = vi.spyOn(process.stdout, 'write').mockImplementation((text: unknown) => {
@@ -109,7 +113,7 @@ describe('desktop build version discovery', () => {
     })
     try {
       await expect(suggestDesktopBuildVersion({
-        productVersion: PRERELEASE, target: 'linux-x64', date: DATE, artifactsRoot,
+        productVersion: PRERELEASE, target, date: DATE, artifactsRoot,
         // A configured destination would be queried for every published target.
         environment: {
           DSH_DESKTOP_AUTO_UPDATE_ENV: 'test', DOWNLOAD_TEST_ORIGIN: 'https://desktop-updates.example.com',

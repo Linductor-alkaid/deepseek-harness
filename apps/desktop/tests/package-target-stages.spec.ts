@@ -222,10 +222,12 @@ it('fails debugging packages when runtime verification fails', async () => {
   expect(writeFileSync).not.toHaveBeenCalled()
 })
 
-it('builds the Linux target as an unsigned AppImage without a release record', async () => {
+it.each([
+  ['linux-x64', 'x64'], ['linux-arm64', 'arm64'],
+] as const)('builds %s as an unsigned AppImage without a release record', async (target, arch) => {
   const { run, stages } = supervisor()
-  await packageTarget(parseDesktopPackageInvocation(['linux-x64'], 'linux', 'x64'), environment, run)
-  expect(stages.at(-2)).toBe('exec electron-builder --config electron-builder.config.mjs --linux --x64 --publish never')
+  await packageTarget(parseDesktopPackageInvocation([target], 'linux', arch), environment, run)
+  expect(stages.at(-2)).toBe(`exec electron-builder --config electron-builder.config.mjs --linux --${arch} --publish never`)
   expect(stages.at(-1)).toBe('exec tsx scripts/smoke-packaged-runtime.ts --unsigned')
   expect(withWindowsSigningStage).not.toHaveBeenCalled()
   expect(packageMacOSArtifacts).not.toHaveBeenCalled()

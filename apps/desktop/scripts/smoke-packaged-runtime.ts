@@ -18,8 +18,9 @@ if (target === 'win-x64') {
   application = join(artifacts, 'win-unpacked')
   resources = join(application, 'resources')
   executable = join(application, 'DeepSeek Harness.exe')
-} else if (target === 'linux-x64') {
-  application = join(artifacts, 'linux-unpacked')
+} else if (target === 'linux-x64' || target === 'linux-arm64') {
+  // electron-builder names the unpacked output after the architecture; only x64 Linux omits it.
+  application = join(artifacts, target === 'linux-arm64' ? 'linux-arm64-unpacked' : 'linux-unpacked')
   resources = join(application, 'resources')
   executable = join(application, 'deepseek-harness')
 } else {
