@@ -24,7 +24,7 @@
       "path": "../ui-renderer"
     },
     {
-      "path": "../ui-layout"
+      "path": "../ui-layout/tsconfig.client.json"
     },
     {
       "path": "../../util/file-drag"

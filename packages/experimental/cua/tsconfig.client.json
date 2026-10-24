@@ -38,7 +38,7 @@
       "path": "../../client/ui-settings/tsconfig.client.json"
     },
     {
-      "path": "../../client/ui-layout"
+      "path": "../../client/ui-layout/tsconfig.client.json"
     },
     {
       "path": "../../api/remotes/tsconfig.client.json"
