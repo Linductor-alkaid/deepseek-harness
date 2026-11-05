@@ -46,7 +46,7 @@ it('classifies the current workspace and shares only runtime patch bytes', () =>
   expect(plan.patches.map(entry => entry.spec)).toEqual([
     '@deepseek-ai/libreoffice-kit@0.1.5', '@earendil-works/pi-ai@1.3.0', 'node-pty@1.2.0-beta.15',
   ])
-  expect(plan.workspaceOnly).toHaveLength(8)
+  expect(plan.workspaceOnly).toHaveLength(10)
   expect(plan.workspaceOnly).toContain('@botiverse/oar')
   expect(plan.workspaceOnly).toContain('lexical')
   const settings = yaml.load(readFileSync(join(project, 'pnpm-workspace.yaml'), 'utf8')) as { overrides: Record<string, string> }

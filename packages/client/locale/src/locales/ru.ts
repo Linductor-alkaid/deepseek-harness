@@ -33,6 +33,8 @@ export const ru = {
   'more': 'Ещё',
   'collapse': 'Свернуть',
   'expand': 'Развернуть',
+  'subtitle.expand': 'Развернуть описание {name}',
+  'subtitle.collapse': 'Свернуть описание {name}',
   'back': 'Назад',
   'window.minimize': 'Свернуть',
   'window.maximize': 'Развернуть',
