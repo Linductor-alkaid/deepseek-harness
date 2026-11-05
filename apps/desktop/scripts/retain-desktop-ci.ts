@@ -1,8 +1,8 @@
 /** Retain completed CI packages for later manual publication. */
 import { appendFile, readFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
-import { desktopTargetBuildPaths, resolveDesktopBuildTarget } from './desktop-build-paths.mjs'
-import { desktopBuildRecordFilename, desktopUpdateMetadataFilename, resolveDesktopUpdateChannel } from './desktop-auto-update-environment.mjs'
+import { desktopTargetBuildPaths, resolveDesktopBuildTarget, type DesktopBuildTarget } from './desktop-build-paths.mjs'
+import { desktopBuildRecordFilename, desktopUpdateMetadataFilename, resolveDesktopUpdateChannel, type DesktopAutoUpdateTarget } from './desktop-auto-update-environment.mjs'
 import { loadDesktopPackageEnvironment } from './desktop-package-environment.mjs'
 import { retainDesktopRelease, type DesktopRetainedSource } from './desktop-release-store.ts'
 import { validateDesktopBuildVersion } from './desktop-build-version.mjs'
@@ -13,6 +13,13 @@ function required(env: NodeJS.ProcessEnv, name: string): string {
   const value = env[name]
   if (!value) throw new Error(`desktop retention: ${name} is required`)
   return value
+}
+
+/** Only macOS and Windows artifacts are published; a Linux build has no release record or update feed. */
+function assertPublishableTarget(target: DesktopBuildTarget): asserts target is DesktopAutoUpdateTarget {
+  if (target === 'linux-x64' || target === 'linux-arm64') {
+    throw new Error(`desktop retention: ${target} is not a publishable release target`)
+  }
 }
 
 /**
@@ -34,6 +41,7 @@ export function desktopReleasesRoot(env: NodeJS.ProcessEnv): string {
  */
 export function resolveDesktopRetentionRunner(env: NodeJS.ProcessEnv): string {
   const target = resolveDesktopBuildTarget(env)
+  assertPublishableTarget(target)
   const routes = desktopPublishRunnersSchema.parse(JSON.parse(required(env, 'DESKTOP_PUBLISH_RUNNERS')))
   const route = routes[required(env, 'RUNNER_NAME')]
   if (!route || !route.target.includes(target)
@@ -51,10 +59,7 @@ export function resolveDesktopRetentionRunner(env: NodeJS.ProcessEnv): string {
  */
 export async function retainDesktopCi(env: NodeJS.ProcessEnv, appRoot = resolve(import.meta.dirname, '..')): Promise<string> {
   const target = resolveDesktopBuildTarget(env)
-  // Only macOS and Windows artifacts are published; a Linux build has no release record or update feed.
-  if (target === 'linux-x64' || target === 'linux-arm64') {
-    throw new Error(`desktop retention: ${target} is not a publishable release target`)
-  }
+  assertPublishableTarget(target)
   const runnerLabel = resolveDesktopRetentionRunner(env)
   const windows = target === 'win-x64'
   const platform = windows ? 'win32' : 'darwin'

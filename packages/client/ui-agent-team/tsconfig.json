@@ -11,7 +11,7 @@
     { "path": "../../api/session-controller/tsconfig.client.json" },
     { "path": "../../api/remotes/tsconfig.client.json" },
     { "path": "../ui-model-selection" },
-    { "path": "../ui-layout" },
+    { "path": "../ui-layout/tsconfig.client.json" },
     { "path": "../../core/agent" },
     { "path": "../ui-subagent" },
     { "path": "../locale/tsconfig.client.json" },
