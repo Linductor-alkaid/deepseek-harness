@@ -16,6 +16,7 @@ vi.mock('node:fs', async (original) => {
   return { ...actual, lstatSync: vi.fn(actual.lstatSync) }
 })
 const { createRequire: nodeCreateRequire } = await vi.importActual<typeof import('node:module')>('node:module')
+const { lstatSync: nodeLstatSync } = await vi.importActual<typeof import('node:fs')>('node:fs')
 
 afterEach(() => { vi.resetAllMocks() })
 
@@ -101,6 +102,16 @@ it.each(['missing manifest', 'dangling symlink', 'absent'] as const)(
     }
   },
 )
+
+it('treats an Electron ASAR null lstat for the engine package as absent', () => {
+  const fixture = engineTree()
+  vi.mocked(lstatSync).mockImplementation(((path: string, options) =>
+    path === fixture.directory ? null : nodeLstatSync(path, options)) as typeof lstatSync)
+  const error = thrownBy(() => fixture.resolveEnginePackage(fixture.name))
+  const nodeError: unknown = fixture.resolve.mock.results[0]?.value
+  expect(nodeError).toMatchObject({ code: 'MODULE_NOT_FOUND' })
+  expect(error).toBe(nodeError)
+})
 
 it('keeps a Node resolution error other than MODULE_NOT_FOUND unchanged', () => {
   const fixture = engineTree()

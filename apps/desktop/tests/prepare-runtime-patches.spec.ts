@@ -1,15 +1,14 @@
-import { execFile, execFileSync } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { afterEach, expect, it } from 'vitest'
 import yaml from 'js-yaml'
 import { pnpmCommand } from '../../../scripts/release/process.ts'
 import { prepareRuntimePatches, verifyRuntimePatches } from '../scripts/prepare-runtime-patches.ts'
-import { DESKTOP_RUNTIME_PATCHES, type DesktopRuntimePatch } from '../scripts/runtime-patch-policy.ts'
+import type { DesktopRuntimePatch } from '../scripts/runtime-patch-policy.ts'
 
 const roots: string[] = []
 const shared = { scope: 'shared', reason: 'Runtime fixture.' } as const
@@ -43,9 +42,7 @@ it('classifies the current workspace and shares only runtime patch bytes', () =>
   const repository = resolve(import.meta.dirname, '../../..')
   const before = readFileSync(join(repository, 'pnpm-lock.yaml'))
   const plan = prepareRuntimePatches(project, repository)
-  expect(plan.patches.map(entry => entry.spec)).toEqual([
-    '@deepseek-ai/libreoffice-kit@0.1.5', '@earendil-works/pi-ai@1.3.0', 'node-pty@1.2.0-beta.15',
-  ])
+  expect(plan.patches.map(entry => entry.spec)).toEqual(['@earendil-works/pi-ai@1.3.0', 'node-pty@1.2.0-beta.15'])
   expect(plan.workspaceOnly).toHaveLength(10)
   expect(plan.workspaceOnly).toContain('@botiverse/oar')
   expect(plan.workspaceOnly).toContain('lexical')
@@ -62,28 +59,6 @@ it('classifies the current workspace and shares only runtime patch bytes', () =>
   }))
   expect(() => { verifyRuntimePatches(project, plan) })
     .toThrow('workspace-only dependency entered the runtime: @botiverse/oar@0.67.0')
-})
-
-it('patches the LibreOffice engine package for the packaged runtime only', () => {
-  const repository = resolve(import.meta.dirname, '../../..')
-  const decision = DESKTOP_RUNTIME_PATCHES['@deepseek-ai/libreoffice-kit@0.1.5']
-  expect(decision?.scope).toBe('runtime-only')
-  expect(decision?.scope === 'runtime-only' ? decision.path : undefined)
-    .toBe('patches/@deepseek-ai__libreoffice-kit@0.1.5.patch')
-  const patchPath = join(repository, 'patches/@deepseek-ai__libreoffice-kit@0.1.5.patch')
-  expect(existsSync(patchPath)).toBe(true)
-  expect(readFileSync(patchPath).length).toBeGreaterThan(0)
-  // The bytes must apply to the package the packaged runtime loads.
-  const installed = dirname(createRequire(join(repository, 'packages/document/office-to-pdf/package.json'))
-    .resolve('@deepseek-ai/libreoffice-kit/package.json'))
-  const copy = mkdtempSync(join(tmpdir(), 'desktop-libreoffice-patch-'))
-  roots.push(copy)
-  cpSync(installed, copy, { recursive: true })
-  const check = execFileSync('git', ['apply', '--check', patchPath], { cwd: copy, encoding: 'utf8' })
-  expect(check).toBe('')
-  execFileSync('git', ['apply', patchPath], { cwd: copy, encoding: 'utf8' })
-  expect(readFileSync(join(copy, 'lib', 'index.js'), 'utf8'))
-    .toContain('lstatSync(join(directory, name), { throwIfNoEntry: false }) != null')
 })
 
 it('does not infer version overrides from selected patches', () => {
