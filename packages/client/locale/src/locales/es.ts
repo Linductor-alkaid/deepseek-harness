@@ -33,8 +33,6 @@ export const es = {
   'more': 'Más',
   'collapse': 'Contraer',
   'expand': 'Expandir',
-  'subtitle.expand': 'Expandir la descripción de {name}',
-  'subtitle.collapse': 'Contraer la descripción de {name}',
   'back': 'Atrás',
   'window.minimize': 'Minimizar',
   'window.maximize': 'Maximizar',

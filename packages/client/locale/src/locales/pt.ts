@@ -33,8 +33,6 @@ export const pt = {
   'more': 'Mais',
   'collapse': 'Recolher',
   'expand': 'Expandir',
-  'subtitle.expand': 'Expandir descrição de {name}',
-  'subtitle.collapse': 'Recolher descrição de {name}',
   'back': 'Voltar',
   'window.minimize': 'Minimizar',
   'window.maximize': 'Maximizar',
